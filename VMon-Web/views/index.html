@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMon Web</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #121212;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        h1 {
+            color: #4fc3f7;
+            margin-bottom: 24px;
+            text-align: center;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            padding: 12px 18px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff5252;
+            box-shadow: 0 0 6px rgba(255,82,82,0.4);
+            transition: background 0.4s, box-shadow 0.4s;
+        }
+
+        .status-dot.connected {
+            background: #69f0ae;
+            box-shadow: 0 0 6px rgba(105,240,174,0.4);
+        }
+
+        #statusText {
+            font-size: 0.95em;
+            color: #b0b0b0;
+        }
+
+        .vm-count {
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .search-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        #searchInput {
+            flex: 1;
+            padding: 14px 18px;
+            border: 1px solid #333;
+            border-radius: 6px;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            font-size: 1em;
+            transition: border-color 0.2s;
+        }
+
+        #searchInput:focus {
+            outline: none;
+            border-color: #4fc3f7;
+        }
+
+        #searchInput::placeholder {
+            color: #666;
+        }
+
+        button {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        button:hover:not(:disabled) {
+            opacity: 0.85;
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        button:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        #searchBtn {
+            background: #4fc3f7;
+            color: #121212;
+        }
+
+        .results {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 120px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px;
+            border-bottom: 1px solid #2a2a2a;
+            transition: background 0.2s;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-item:hover {
+            background: #252525;
+        }
+
+        .result-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .result-name {
+            font-weight: 500;
+            color: #4fc3f7;
+            font-size: 1.05em;
+            word-break: break-all;
+        }
+
+        .result-meta {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 6px;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .btn-on {
+            background: #69f0ae;
+            color: #121212;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .btn-off {
+            background: #ffab40;
+            color: #121212;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .message {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+        }
+
+        .message.error {
+            color: #ff5252;
+        }
+
+        .message.success {
+            color: #69f0ae;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            max-width: 400px;
+            padding: 16px 22px;
+            border-radius: 8px;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            border-left: 4px solid #4fc3f7;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            transform: translateY(120px);
+            opacity: 0;
+            transition: all 0.35s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-left-color: #69f0ae;
+        }
+
+        .toast.error {
+            border-left-color: #ff5252;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>VMon Web</h1>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Checking connection...</span>
+            </div>
+            <div class="vm-count" id="vmCount"></div>
+        </div>
+
+        <div class="search-section">
+            <input type="text" id="searchInput" placeholder="Search VM by name or IP..." autofocus autocomplete="off">
+            <button id="searchBtn">Search</button>
+        </div>
+
+        <div class="results" id="results">
+            <div class="message">Type at least 2 characters and click Search</div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        (function() {
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn   = document.getElementById('searchBtn');
+            const resultsDiv  = document.getElementById('results');
+            const statusDot   = document.getElementById('statusDot');
+            const statusText  = document.getElementById('statusText');
+            const vmCount     = document.getElementById('vmCount');
+            const toast       = document.getElementById('toast');
+
+            function showToast(message, type) {
+                toast.textContent = message;
+                toast.className = 'toast ' + (type || '');
+                requestAnimationFrame(() => toast.classList.add('show'));
+                setTimeout(() => toast.classList.remove('show'), 3500);
+            }
+
+            async function checkStatus() {
+                try {
+                    const res = await fetch('/api/status');
+                    const data = await res.json();
+                    if (data.connected) {
+                        statusDot.classList.add('connected');
+                        statusText.textContent = 'Connected to vCenter';
+                        vmCount.textContent = data.vmCount + ' VMs cached';
+                    } else {
+                        statusDot.classList.remove('connected');
+                        statusText.textContent = 'Disconnected';
+                        vmCount.textContent = '';
+                    }
+                } catch (err) {
+                    statusDot.classList.remove('connected');
+                    statusText.textContent = 'Server unreachable';
+                    vmCount.textContent = '';
+                }
+            }
+
+            async function searchVMs() {
+                const query = searchInput.value.trim();
+                if (query.length < 2) {
+                    resultsDiv.innerHTML = '<div class="message error">Please enter at least 2 characters</div>';
+                    return;
+                }
+
+                resultsDiv.innerHTML = '<div class="message">Searching...</div>';
+
+                try {
+                    const res = await fetch('/api/search?q=' + encodeURIComponent(query));
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        resultsDiv.innerHTML = '<div class="message error">' + escapeHtml(data.error || 'Search failed') + '</div>';
+                        return;
+                    }
+
+                    if (!data.results || data.results.length === 0) {
+                        resultsDiv.innerHTML = '<div class="message">No VM found in cache.</div>';
+                        return;
+                    }
+
+                    resultsDiv.innerHTML = '';
+                    data.results.forEach(function(vm) {
+                        const item = document.createElement('div');
+                        item.className = 'result-item';
+
+                        const ip = vm.ip || 'N/A';
+                        const isPoweredOn = (vm.powerState || '').toLowerCase() === 'poweredon';
+
+                        item.innerHTML =
+                            '<div class="result-info">' +
+                                '<div class="result-name">' + escapeHtml(vm.name) + '</div>' +
+                                '<div class="result-meta">' +
+                                    'IP: ' + escapeHtml(ip) +
+                                    ' &bull; vCenter: ' + escapeHtml(vm.vcenter) +
+                                    ' &bull; Status: ' + escapeHtml(vm.powerState) +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="result-actions">' +
+                                '<button class="btn-on"' + (isPoweredOn ? ' disabled' : '') + ' data-action="power-on" data-id="' + escapeAttr(vm.id) + '">Power On</button>' +
+                                '<button class="btn-off"' + (!isPoweredOn ? ' disabled' : '') + ' data-action="shutdown" data-id="' + escapeAttr(vm.id) + '">Shutdown</button>' +
+                            '</div>';
+
+                        resultsDiv.appendChild(item);
+                    });
+                } catch (err) {
+                    resultsDiv.innerHTML = '<div class="message error">Search failed: ' + escapeHtml(err.message) + '</div>';
+                }
+            }
+
+            async function handleAction(action, vmId) {
+                const url = action === 'power-on' ? '/api/power-on' : '/api/shutdown';
+                const controller = new AbortController();
+                const timeoutId = setTimeout(function() { controller.abort(); }, 30000);
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: vmId }),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                    const data = await res.json();
+
+                    if (res.ok && data.success) {
+                        showToast(data.message, 'success');
+                        setTimeout(searchVMs, 1200);
+                    } else {
+                        showToast(data.error || 'Action failed', 'error');
+                    }
+                } catch (err) {
+                    showToast('Error: ' + err.message, 'error');
+                }
+            }
+
+            function escapeHtml(text) {
+                if (text == null) return '';
+                const div = document.createElement('div');
+                div.textContent = String(text);
+                return div.innerHTML;
+            }
+
+            function escapeAttr(text) {
+                if (text == null) return '';
+                return String(text).replace(/[&<>"']/g, function(m) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+                });
+            }
+
+            searchBtn.addEventListener('click', searchVMs);
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') searchVMs();
+            });
+
+            resultsDiv.addEventListener('click', function(e) {
+                const btn = e.target.closest('button[data-action]');
+                if (!btn) return;
+                const action = btn.getAttribute('data-action');
+                const vmId   = btn.getAttribute('data-id');
+                if (action && vmId) {
+                    e.stopPropagation();
+                    handleAction(action, vmId);
+                }
+            });
+
+            // Initial status check + polling
+            checkStatus();
+            setInterval(checkStatus, 5000);
+        })();
+    </script>
+</body>
+</html>

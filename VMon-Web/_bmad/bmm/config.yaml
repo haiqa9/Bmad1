@@ -1,0 +1,7 @@
+project_name: "VMon-Web"
+planning_artifacts: "_bmad/planning"
+implementation_artifacts: "_bmad/implementation"
+user_name: "User"
+communication_language: "English"
+document_output_language: "English"
+user_skill_level: "intermediate"
