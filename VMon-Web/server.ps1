@@ -37,9 +37,9 @@ Start-PodeServer -Threads 2 {
     $pass2 = 'Experts@0ffice' | ConvertTo-SecureString -AsPlainText -Force
     $cred2 = New-Object System.Management.Automation.PSCredential($user2, $pass2)
 
-    # -- State --
-    $script:LocalCache      = @()
-    $script:ConnectionErrors = @()
+    # -- State (global scope so all Pode runspaces can access) --
+    $global:VMonVMCache       = @()
+    $global:VMonConnectionErrors = @()
 
     # -- Connection --
     function Connect-VMonServers {
@@ -57,7 +57,7 @@ Start-PodeServer -Threads 2 {
             & $log "WARNING: Set-PowerCLIConfiguration failed: $($_.Exception.Message)" "Yellow"
         }
 
-        $script:ConnectionErrors = @()
+        $global:VMonConnectionErrors = @()
         $connectedServers = @()
 
         foreach ($server in $vCenterGroup1) {
@@ -69,7 +69,7 @@ Start-PodeServer -Threads 2 {
             }
             catch {
                 $err = "FAILED: $server - $($_.Exception.Message)"
-                $script:ConnectionErrors += $err
+                $global:VMonConnectionErrors += $err
                 & $log "  $err" "Red"
             }
         }
@@ -83,7 +83,7 @@ Start-PodeServer -Threads 2 {
             }
             catch {
                 $err = "FAILED: $server - $($_.Exception.Message)"
-                $script:ConnectionErrors += $err
+                $global:VMonConnectionErrors += $err
                 & $log "  $err" "Red"
             }
         }
@@ -92,33 +92,33 @@ Start-PodeServer -Threads 2 {
         if ($connectedServers.Count -gt 0) {
             try {
                 & $log "Building VM cache from $($connectedServers.Count) server(s)..." "Gray"
-                $script:LocalCache = Get-VM | Select-Object Name, Id, @{N='IP'; E={$_.Guest.IPAddress[0]}}, @{N='vCenter'; E={$_.Uid.Split('@')[1].Split(':')[0]}}, @{N='PowerState'; E={$_.PowerState}}
-                $vmCount = $script:LocalCache.Count
+                $global:VMonVMCache = Get-VM | Select-Object Name, Id, @{N='IP'; E={$_.Guest.IPAddress[0]}}, @{N='vCenter'; E={$_.Uid.Split('@')[1].Split(':')[0]}}, @{N='PowerState'; E={$_.PowerState}}
+                $vmCount = $global:VMonVMCache.Count
                 & $log "Cache built: $vmCount VMs." "Green"
             }
             catch {
                 $err = "FAILED: Get-VM cache build - $($_.Exception.Message)"
-                $script:ConnectionErrors += $err
-                $script:LocalCache = @()
+                $global:VMonConnectionErrors += $err
+                $global:VMonVMCache = @()
                 & $log "  $err" "Red"
             }
         }
         else {
-            $script:LocalCache = @()
+            $global:VMonVMCache = @()
             & $log "No vCenter connections established. Cache is empty." "Yellow"
         }
 
         return @{
             ConnectedServers = $connectedServers
             VMCount          = $vmCount
-            Errors           = $script:ConnectionErrors
+            Errors           = $global:VMonConnectionErrors
         }
     }
 
     function Reconnect-VMonServers {
         try { Disconnect-VIServer -Server * -Confirm:$false -ErrorAction SilentlyContinue | Out-Null }
         catch {}
-        $script:LocalCache = @()
+        $global:VMonVMCache = @()
         return Connect-VMonServers
     }
 
@@ -126,9 +126,9 @@ Start-PodeServer -Threads 2 {
         $connected = ($global:DefaultVIServers.Count -gt 0)
         return @{
             Connected = $connected
-            VMCount   = $script:LocalCache.Count
+            VMCount   = $global:VMonVMCache.Count
             Servers   = @($global:DefaultVIServers | Select-Object -ExpandProperty Name)
-            Errors    = $script:ConnectionErrors
+            Errors    = $global:VMonConnectionErrors
         }
     }
 
@@ -141,7 +141,7 @@ Start-PodeServer -Threads 2 {
         if ($term.Length -lt 2) {
             return @{ Type = 'tooshort'; Results = @(); Message = 'Please enter at least 2 characters to search.' }
         }
-        $results = @($script:LocalCache | Where-Object {
+        $results = @($global:VMonVMCache | Where-Object {
             ($_.Name -like "*$term*") -or ($_.IP -match [regex]::Escape($term))
         })
         Write-Host "Search for '$term' returned $($results.Count) result(s)." -ForegroundColor Cyan

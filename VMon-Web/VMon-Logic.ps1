@@ -23,12 +23,12 @@ $pass2 = 'Experts@0ffice' | ConvertTo-SecureString -AsPlainText -Force
 $cred2 = New-Object System.Management.Automation.PSCredential($user2, $pass2)
 
 # --- 2. STATE VARIABLES ---
-$script:LocalCache      = @()
-$script:SelectedVM      = $null
-$script:SearchResults   = @()
-$script:ResultsDisplay  = ""
+$global:VMonVMCache       = @()
+$script:SelectedVM        = $null
+$script:SearchResults     = @()
+$script:ResultsDisplay    = ""
 $script:AwaitingSelection = $false
-$script:ConnectionErrors = @()
+$global:VMonConnectionErrors = @()
 
 # --- 3. CONNECTION ---
 function Connect-VMonServers {
@@ -60,7 +60,7 @@ function Connect-VMonServers {
         & $log "WARNING: Set-PowerCLIConfiguration failed: $($_.Exception.Message)" "Yellow"
     }
 
-    $script:ConnectionErrors = @()
+    $global:VMonConnectionErrors = @()
     $connectedServers = @()
 
     # --- Connect Group 1 ---
@@ -73,7 +73,7 @@ function Connect-VMonServers {
         }
         catch {
             $err = "FAILED: $server - $($_.Exception.Message)"
-            $script:ConnectionErrors += $err
+            $global:VMonConnectionErrors += $err
             & $log "  $err" "Red"
         }
     }
@@ -88,7 +88,7 @@ function Connect-VMonServers {
         }
         catch {
             $err = "FAILED: $server - $($_.Exception.Message)"
-            $script:ConnectionErrors += $err
+            $global:VMonConnectionErrors += $err
             & $log "  $err" "Red"
         }
     }
@@ -98,26 +98,26 @@ function Connect-VMonServers {
     if ($connectedServers.Count -gt 0) {
         try {
             & $log "Building VM cache from $($connectedServers.Count) server(s)..." "Gray"
-            $script:LocalCache = Get-VM | Select-Object Name, Id, @{N='IP'; E={$_.Guest.IPAddress[0]}}, @{N='vCenter'; E={$_.Uid.Split('@')[1].Split(':')[0]}}, @{N='PowerState'; E={$_.PowerState}}
-            $vmCount = $script:LocalCache.Count
+            $global:VMonVMCache = Get-VM | Select-Object Name, Id, @{N='IP'; E={$_.Guest.IPAddress[0]}}, @{N='vCenter'; E={$_.Uid.Split('@')[1].Split(':')[0]}}, @{N='PowerState'; E={$_.PowerState}}
+            $vmCount = $global:VMonVMCache.Count
             & $log "Cache built: $vmCount VMs." "Green"
         }
         catch {
             $err = "FAILED: Get-VM cache build - $($_.Exception.Message)"
-            $script:ConnectionErrors += $err
-            $script:LocalCache = @()
+            $global:VMonConnectionErrors += $err
+            $global:VMonVMCache = @()
             & $log "  $err" "Red"
         }
     }
     else {
-        $script:LocalCache = @()
+        $global:VMonVMCache = @()
         & $log "No vCenter connections established. Cache is empty." "Yellow"
     }
 
     return @{
         ConnectedServers = $connectedServers
         VMCount          = $vmCount
-        Errors           = $script:ConnectionErrors
+        Errors           = $global:VMonConnectionErrors
         TotalServers     = ($vCenterGroup1.Count + $vCenterGroup2.Count)
     }
 }
@@ -131,7 +131,7 @@ function Reconnect-VMonServers {
         Disconnect-VIServer -Server * -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
     }
     catch {}
-    $script:LocalCache = @()
+    $global:VMonVMCache = @()
     return Connect-VMonServers
 }
 
@@ -139,9 +139,9 @@ function Get-VMonStatus {
     $connected = ($global:DefaultVIServers.Count -gt 0)
     return @{
         Connected = $connected
-        VMCount   = $script:LocalCache.Count
+        VMCount   = $global:VMonVMCache.Count
         Servers   = @($global:DefaultVIServers | Select-Object -ExpandProperty Name)
-        Errors    = $script:ConnectionErrors
+        Errors    = $global:VMonConnectionErrors
     }
 }
 
@@ -165,7 +165,7 @@ function Search-VMonCache {
         return @{ Type = 'tooshort'; Results = @(); Message = 'Please enter at least 2 characters to search.' }
     }
 
-    $results = @($script:LocalCache | Where-Object {
+    $results = @($global:VMonVMCache | Where-Object {
         ($_.Name -like "*$term*") -or ($_.IP -match [regex]::Escape($term))
     })
 
