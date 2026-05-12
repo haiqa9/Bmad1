@@ -253,13 +253,21 @@ Start-PodeServer -Threads 1 {
     # --- 4. SERVE FRONTEND ---
     # Explicit route for '/' — prevents any risk of API route interception.
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
-        $htmlPath = Join-Path $script:ServerRoot 'views/index.html'
-        if (Test-Path $htmlPath) {
-            $html = Get-Content -Raw -Path $htmlPath
-            Write-PodeHtmlResponse -Value $html
-        } else {
+        try {
+            $htmlPath = Join-Path $script:ServerRoot 'views/index.html'
+            if (Test-Path $htmlPath) {
+                Write-PodeHost "[VMon] Serving $htmlPath"
+                Write-PodeHtmlResponse -Path $htmlPath
+            } else {
+                Write-PodeHost "[VMon] ERROR: index.html not found at $htmlPath"
+                Set-PodeResponseStatus -Code 500
+                Write-PodeJsonResponse -Value @{ error = 'index.html not found' }
+            }
+        }
+        catch {
+            Write-PodeHost "[VMon] ERROR serving /: $($_.Exception.Message)"
             Set-PodeResponseStatus -Code 500
-            Write-PodeJsonResponse -Value @{ error = 'index.html not found' }
+            Write-PodeJsonResponse -Value @{ error = $_.Exception.Message }
         }
     }
 
