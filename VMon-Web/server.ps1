@@ -16,22 +16,12 @@ if (-not (Get-Module -ListAvailable VMware.VimAutomation.Core)) {
 Import-Module Pode
 Import-Module VMware.VimAutomation.Core -ErrorAction Stop
 
-# Capture views directory with absolute path before entering Pode
-$ViewsDir = Join-Path $PSScriptRoot 'views'
+# Store the project root in an environment variable so it is accessible
+# from any runspace (Pode routes, timers, etc.).
+$env:VMonWebRoot = $PSScriptRoot
 
 # --- 1. START PODE SERVER ---
 Start-PodeServer -Threads 2 {
-
-    # =====================================================================
-    # VIEW ENGINE SETUP — serves .html files from the views folder
-    # =====================================================================
-    Set-PodeViewEngine -Type Pode -Extension '.html' -ScriptBlock {
-        param($path, $data)
-        return (Get-Content -Path $path -Raw)
-    }
-
-    # Register the views folder so Pode can resolve view paths across runspaces
-    Add-PodeViewFolder -Name 'views' -Source $ViewsDir
 
     # =====================================================================
     # INLINE LOGIC — credentials, connection, search, VM actions
@@ -391,10 +381,21 @@ Start-PodeServer -Threads 2 {
     }
 
     # =====================================================================
-    # SERVE FRONTEND — uses Pode's view engine (renders as HTML page)
+    # SERVE FRONTEND — use Pode view engine
     # =====================================================================
+
+    # Register the views folder with an absolute path derived from the
+    # environment variable (works across all runspaces).
+    $viewsPath = Join-Path $env:VMonWebRoot 'views'
+    Add-PodeViewFolder -Name 'views' -Source $viewsPath
+
+    # Set the view engine for .html files (no templating, just raw HTML)
+    Set-PodeViewEngine -Type Pode -Extension '.html' -ScriptBlock {
+        param($path, $data)
+        return (Get-Content -Path $path -Raw)
+    }
+
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
-        # Out-PodeView is the conceptual name; the actual cmdlet is Write-PodeViewResponse
         Write-PodeViewResponse -Path 'index' -Folder 'views'
     }
 
