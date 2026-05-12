@@ -15,14 +15,17 @@ if (-not (Get-Module -ListAvailable VMware.VimAutomation.Core)) {
 
 Import-Module Pode
 
-# Capture script root for use inside route scriptblocks via 'using:' scope
+# Capture script root BEFORE Start-PodeServer so we can store it in Pode state
 $ServerRoot = $PSScriptRoot
 
 # --- 1. START PODE SERVER ---
 Start-PodeServer -Threads 1 {
 
+    # Store server root in Pode's shared state (accessible from all routes)
+    Set-PodeState -Name 'VMonServerRoot' -Value $ServerRoot
+
     # Import shared logic INSIDE Pode's runspace
-    $logicPath = Join-Path $using:ServerRoot 'VMon-Logic.ps1'
+    $logicPath = Join-Path (Get-PodeState -Name 'VMonServerRoot') 'VMon-Logic.ps1'
     if (Test-Path $logicPath) {
         . $logicPath
         Write-PodeHost "[VMon] Loaded VMon-Logic.ps1 from: $logicPath"
@@ -251,10 +254,10 @@ Start-PodeServer -Threads 1 {
     }
 
     # --- 4. SERVE FRONTEND ---
-    # Explicit route for '/' — read file content and return as HTML.
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
         try {
-            $htmlPath = Join-Path $using:ServerRoot 'views/index.html'
+            $root = Get-PodeState -Name 'VMonServerRoot'
+            $htmlPath = Join-Path $root 'views/index.html'
             Write-PodeHost "[VMon] Resolving index.html at: $htmlPath"
             if (Test-Path $htmlPath) {
                 $html = Get-Content -Raw -Path $htmlPath -ErrorAction Stop
