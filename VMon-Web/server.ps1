@@ -15,14 +15,14 @@ if (-not (Get-Module -ListAvailable VMware.VimAutomation.Core)) {
 
 Import-Module Pode
 
-# Capture script root so it's available inside Pode's runspace
-$script:ServerRoot = $PSScriptRoot
+# Capture script root for use inside route scriptblocks via 'using:' scope
+$ServerRoot = $PSScriptRoot
 
 # --- 1. START PODE SERVER ---
 Start-PodeServer -Threads 1 {
 
     # Import shared logic INSIDE Pode's runspace
-    $logicPath = Join-Path $script:ServerRoot 'VMon-Logic.ps1'
+    $logicPath = Join-Path $using:ServerRoot 'VMon-Logic.ps1'
     if (Test-Path $logicPath) {
         . $logicPath
         Write-PodeHost "[VMon] Loaded VMon-Logic.ps1 from: $logicPath"
@@ -251,13 +251,15 @@ Start-PodeServer -Threads 1 {
     }
 
     # --- 4. SERVE FRONTEND ---
-    # Explicit route for '/' — prevents any risk of API route interception.
+    # Explicit route for '/' — read file content and return as HTML.
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
         try {
-            $htmlPath = Join-Path $script:ServerRoot 'views/index.html'
+            $htmlPath = Join-Path $using:ServerRoot 'views/index.html'
+            Write-PodeHost "[VMon] Resolving index.html at: $htmlPath"
             if (Test-Path $htmlPath) {
-                Write-PodeHost "[VMon] Serving $htmlPath"
-                Write-PodeHtmlResponse -Path $htmlPath
+                $html = Get-Content -Raw -Path $htmlPath -ErrorAction Stop
+                Write-PodeHost "[VMon] Serving index.html ($( [System.Text.Encoding]::UTF8.GetByteCount($html) ) bytes)"
+                Write-PodeHtmlResponse -Value $html
             } else {
                 Write-PodeHost "[VMon] ERROR: index.html not found at $htmlPath"
                 Set-PodeResponseStatus -Code 500
