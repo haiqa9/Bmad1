@@ -16,8 +16,7 @@ if (-not (Get-Module -ListAvailable VMware.VimAutomation.Core)) {
 Import-Module Pode
 Import-Module VMware.VimAutomation.Core -ErrorAction Stop
 
-# Store the project root in an environment variable so it is accessible
-# from any runspace (Pode routes, timers, etc.).
+# Store the project root in an environment variable so any runspace can access it.
 $env:VMonWebRoot = $PSScriptRoot
 
 # --- 1. START PODE SERVER ---
@@ -381,22 +380,14 @@ Start-PodeServer -Threads 2 {
     }
 
     # =====================================================================
-    # SERVE FRONTEND — use Pode view engine
+    # SERVE FRONTEND
     # =====================================================================
-
-    # Register the views folder with an absolute path derived from the
-    # environment variable (works across all runspaces).
-    $viewsPath = Join-Path $env:VMonWebRoot 'views'
-    Add-PodeViewFolder -Name 'views' -Source $viewsPath
-
-    # Set the view engine for .html files (no templating, just raw HTML)
-    Set-PodeViewEngine -Type Pode -Extension '.html' -ScriptBlock {
-        param($path, $data)
-        return (Get-Content -Path $path -Raw)
-    }
-
+    # Note: Add-PodeViewEngine / Out-PodeView do not exist in Pode 2.12.1.
+    # The equivalent approach below uses Write-PodeFileResponse with an
+    # absolute path — it serves the file with Content-Type: text/html.
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
-        Write-PodeViewResponse -Path 'index' -Folder 'views'
+        $file = Join-Path $env:VMonWebRoot 'views/index.html'
+        Write-PodeFileResponse -Path $file
     }
 
     Write-PodeHost "[VMon] Server ready. API routes registered."
