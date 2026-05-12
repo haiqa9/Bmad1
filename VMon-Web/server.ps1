@@ -1,11 +1,8 @@
 # server.ps1
 # Pode-based web server for VMon-Web
 #
-# Architecture: All vCenter connections and VM cache are built OUTSIDE
-# Start-PodeServer in the parent runspace.  Start-PodeServer uses
-# -Threads 1 so every route handler executes in that SAME runspace,
-# guaranteeing $global:DefaultVIServers and $global:VMonVMCache are
-# visible to all API calls.
+# Uses Set-PodeState / Get-PodeState for all shared data so routes
+# can access VM cache and connection state regardless of runspace.
 
 # --- 0. PREREQUISITES ---
 if (-not (Get-Module -ListAvailable Pode)) {
@@ -18,155 +15,188 @@ if (-not (Get-Module -ListAvailable VMware.VimAutomation.Core)) {
 }
 
 Import-Module Pode
-Import-Module VMware.VimAutomation.Core -ErrorAction Stop
 
 $env:VMonWebRoot = $PSScriptRoot
 
 # =====================================================================
-# 1. VCENTER CONNECTION & CACHE BUILD  (parent runspace)
-# =====================================================================
-
-$vCenterGroup1 = "192.168.1.240", "192.168.2.250"
-$user1 = "haiqa@vsphere.local"
-$pass1 = 'Expert@ef4' | ConvertTo-SecureString -AsPlainText -Force
-$cred1 = New-Object System.Management.Automation.PSCredential($user1, $pass1)
-
-$vCenterGroup2 = "192.168.1.241"
-$user2 = "administrator@vsphere.local"
-$pass2 = 'Experts@0ffice' | ConvertTo-SecureString -AsPlainText -Force
-$cred2 = New-Object System.Management.Automation.PSCredential($user2, $pass2)
-
-$global:VMonVMCache       = @()
-$global:VMonConnectionErrors = @()
-
-function Connect-VMonServers {
-    param([switch]$Silent)
-    $log = { param([string]$msg, [string]$color)
-        if (-not $Silent) {
-            if ($color) { Write-Host $msg -ForegroundColor $color }
-            else        { Write-Host $msg }
-        }
-    }
-    try {
-        Set-PowerCLIConfiguration -Scope Session -ParticipateInCEIP $false -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
-    }
-    catch {
-        & $log "WARNING: Set-PowerCLIConfiguration failed: $($_.Exception.Message)" "Yellow"
-    }
-
-    $global:VMonConnectionErrors = @()
-    $connectedServers = @()
-
-    foreach ($server in $vCenterGroup1) {
-        try {
-            & $log "Connecting to $server (Group 1)..." "Cyan"
-            Connect-VIServer -Server $server -Credential $cred1 -ErrorAction Stop | Out-Null
-            $connectedServers += $server
-            & $log "  OK: $server connected." "Green"
-        }
-        catch {
-            $err = "FAILED: $server - $($_.Exception.Message)"
-            $global:VMonConnectionErrors += $err
-            & $log "  $err" "Red"
-        }
-    }
-
-    foreach ($server in $vCenterGroup2) {
-        try {
-            & $log "Connecting to $server (Group 2)..." "Cyan"
-            Connect-VIServer -Server $server -Credential $cred2 -ErrorAction Stop | Out-Null
-            $connectedServers += $server
-            & $log "  OK: $server connected." "Green"
-        }
-        catch {
-            $err = "FAILED: $server - $($_.Exception.Message)"
-            $global:VMonConnectionErrors += $err
-            & $log "  $err" "Red"
-        }
-    }
-
-    $vmCount = 0
-    if ($connectedServers.Count -gt 0) {
-        try {
-            & $log "Building VM cache from $($connectedServers.Count) server(s)..." "Gray"
-            $global:VMonVMCache = Get-VM | Select-Object Name, Id, @{N='IP'; E={$_.Guest.IPAddress[0]}}, @{N='vCenter'; E={$_.Uid.Split('@')[1].Split(':')[0]}}, @{N='PowerState'; E={$_.PowerState}}
-            $vmCount = $global:VMonVMCache.Count
-            & $log "Cache built: $vmCount VMs." "Green"
-        }
-        catch {
-            $err = "FAILED: Get-VM cache build - $($_.Exception.Message)"
-            $global:VMonConnectionErrors += $err
-            $global:VMonVMCache = @()
-            & $log "  $err" "Red"
-        }
-    }
-    else {
-        $global:VMonVMCache = @()
-        & $log "No vCenter connections established. Cache is empty." "Yellow"
-    }
-
-    return @{
-        ConnectedServers = $connectedServers
-        VMCount          = $vmCount
-        Errors           = $global:VMonConnectionErrors
-    }
-}
-
-function Reconnect-VMonServers {
-    try { Disconnect-VIServer -Server * -Confirm:$false -ErrorAction SilentlyContinue | Out-Null }
-    catch {}
-    $global:VMonVMCache = @()
-    return Connect-VMonServers
-}
-
-function Get-VMonStatus {
-    $connected = ($global:DefaultVIServers.Count -gt 0)
-    return @{
-        Connected = $connected
-        VMCount   = $global:VMonVMCache.Count
-        Servers   = @($global:DefaultVIServers | Select-Object -ExpandProperty Name)
-        Errors    = $global:VMonConnectionErrors
-    }
-}
-
-function Search-VMonCache {
-    param([string]$SearchTerm)
-    $term = $SearchTerm.Trim()
-    if ([string]::IsNullOrWhiteSpace($term)) {
-        return @{ Type = 'empty'; Results = @(); Message = 'Please enter a search term.' }
-    }
-    if ($term.Length -lt 2) {
-        return @{ Type = 'tooshort'; Results = @(); Message = 'Please enter at least 2 characters to search.' }
-    }
-    $results = @($global:VMonVMCache | Where-Object {
-        ($_.Name -like "*$term*") -or ($_.IP -match [regex]::Escape($term))
-    })
-    Write-Host "Search for '$term' returned $($results.Count) result(s)." -ForegroundColor Cyan
-    if ($results.Count -eq 0) {
-        return @{ Type = 'none'; Results = @(); Message = 'No VM found in cache.' }
-    }
-    elseif ($results.Count -eq 1) {
-        $vm = $results[0]
-        return @{ Type = 'single'; Results = @($vm); Message = "MATCH FOUND: $($vm.Name)" }
-    }
-    else {
-        return @{ Type = 'multiple'; Results = $results; Message = "$($results.Count) matches found." }
-    }
-}
-
-Write-Host "`n--- STARTING CONNECTION SEQUENCE ---" -ForegroundColor Cyan
-$startupResult = Connect-VMonServers
-Write-Host "VERIFIED CONNECTIONS: $($startupResult.ConnectedServers -join ', ')" -ForegroundColor Green
-Write-Host "CACHED VMs: $($startupResult.VMCount)" -ForegroundColor Green
-foreach ($err in $startupResult.Errors) {
-    Write-Host "ERROR: $err" -ForegroundColor Red
-}
-
-# =====================================================================
-# 2. PODE SERVER  (-Threads 1 = same runspace as above)
+# 1. PODE SERVER
 # =====================================================================
 Start-PodeServer -Threads 1 {
 
+    Import-Module VMware.VimAutomation.Core -ErrorAction Stop
+
+    # -- Credentials (local to this runspace) --
+    $vCenterGroup1 = "192.168.1.240", "192.168.2.250"
+    $user1 = "haiqa@vsphere.local"
+    $pass1 = 'Expert@ef4' | ConvertTo-SecureString -AsPlainText -Force
+    $cred1 = New-Object System.Management.Automation.PSCredential($user1, $pass1)
+
+    $vCenterGroup2 = "192.168.1.241"
+    $user2 = "administrator@vsphere.local"
+    $pass2 = 'Experts@0ffice' | ConvertTo-SecureString -AsPlainText -Force
+    $cred2 = New-Object System.Management.Automation.PSCredential($user2, $pass2)
+
+    # -- Helper: write shared state via Pode's state API --
+    function Set-VMonState {
+        param([string]$Name, [object]$Value)
+        Set-PodeState -Name $Name -Value $Value | Out-Null
+    }
+    function Get-VMonState {
+        param([string]$Name)
+        return (Get-PodeState -Name $Name)
+    }
+
+    # -- Connection --
+    function Connect-VMonServers {
+        param([switch]$Silent)
+        $log = { param([string]$msg, [string]$color)
+            if (-not $Silent) {
+                if ($color) { Write-Host $msg -ForegroundColor $color }
+                else        { Write-Host $msg }
+            }
+        }
+        try {
+            Set-PowerCLIConfiguration -Scope Session -ParticipateInCEIP $false -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
+        }
+        catch {
+            & $log "WARNING: Set-PowerCLIConfiguration failed: $($_.Exception.Message)" "Yellow"
+        }
+
+        Set-VMonState -Name 'VMonConnectionErrors' -Value @()
+        $connectedServers = @()
+
+        foreach ($server in $vCenterGroup1) {
+            try {
+                & $log "Connecting to $server (Group 1)..." "Cyan"
+                Connect-VIServer -Server $server -Credential $cred1 -ErrorAction Stop | Out-Null
+                $connectedServers += $server
+                & $log "  OK: $server connected." "Green"
+            }
+            catch {
+                $err = "FAILED: $server - $($_.Exception.Message)"
+                $errs = @(Get-VMonState -Name 'VMonConnectionErrors')
+                $errs += $err
+                Set-VMonState -Name 'VMonConnectionErrors' -Value $errs
+                & $log "  $err" "Red"
+            }
+        }
+
+        foreach ($server in $vCenterGroup2) {
+            try {
+                & $log "Connecting to $server (Group 2)..." "Cyan"
+                Connect-VIServer -Server $server -Credential $cred2 -ErrorAction Stop | Out-Null
+                $connectedServers += $server
+                & $log "  OK: $server connected." "Green"
+            }
+            catch {
+                $err = "FAILED: $server - $($_.Exception.Message)"
+                $errs = @(Get-VMonState -Name 'VMonConnectionErrors')
+                $errs += $err
+                Set-VMonState -Name 'VMonConnectionErrors' -Value $errs
+                & $log "  $err" "Red"
+            }
+        }
+
+        $vmCount = 0
+        if ($connectedServers.Count -gt 0) {
+            try {
+                & $log "Building VM cache from $($connectedServers.Count) server(s)..." "Gray"
+                $cache = Get-VM | Select-Object Name, Id, @{N='IP'; E={$_.Guest.IPAddress[0]}}, @{N='vCenter'; E={$_.Uid.Split('@')[1].Split(':')[0]}}, @{N='PowerState'; E={$_.PowerState}}
+                Set-VMonState -Name 'VMonVMCache' -Value $cache
+                Set-VMonState -Name 'VMonConnectedServers' -Value $connectedServers
+                $vmCount = $cache.Count
+                & $log "Cache built: $vmCount VMs." "Green"
+            }
+            catch {
+                $err = "FAILED: Get-VM cache build - $($_.Exception.Message)"
+                $errs = @(Get-VMonState -Name 'VMonConnectionErrors')
+                $errs += $err
+                Set-VMonState -Name 'VMonConnectionErrors' -Value $errs
+                Set-VMonState -Name 'VMonVMCache' -Value @()
+                Set-VMonState -Name 'VMonConnectedServers' -Value @()
+                & $log "  $err" "Red"
+            }
+        }
+        else {
+            Set-VMonState -Name 'VMonVMCache' -Value @()
+            Set-VMonState -Name 'VMonConnectedServers' -Value @()
+            & $log "No vCenter connections established. Cache is empty." "Yellow"
+        }
+
+        return @{
+            ConnectedServers = $connectedServers
+            VMCount          = $vmCount
+            Errors           = (Get-VMonState -Name 'VMonConnectionErrors')
+        }
+    }
+
+    function Reconnect-VMonServers {
+        try { Disconnect-VIServer -Server * -Confirm:$false -ErrorAction SilentlyContinue | Out-Null }
+        catch {}
+        Set-VMonState -Name 'VMonVMCache' -Value @()
+        Set-VMonState -Name 'VMonConnectedServers' -Value @()
+        return Connect-VMonServers
+    }
+
+    function Get-VMonStatus {
+        $servers = Get-VMonState -Name 'VMonConnectedServers'
+        if ($null -eq $servers) { $servers = @() }
+        $cache = Get-VMonState -Name 'VMonVMCache'
+        if ($null -eq $cache) { $cache = @() }
+        $errors = Get-VMonState -Name 'VMonConnectionErrors'
+        if ($null -eq $errors) { $errors = @() }
+        return @{
+            Connected = ($servers.Count -gt 0)
+            VMCount   = $cache.Count
+            Servers   = $servers
+            Errors    = $errors
+        }
+    }
+
+    function Search-VMonCache {
+        param([string]$SearchTerm)
+        $term = $SearchTerm.Trim()
+        if ([string]::IsNullOrWhiteSpace($term)) {
+            return @{ Type = 'empty'; Results = @(); Message = 'Please enter a search term.' }
+        }
+        if ($term.Length -lt 2) {
+            return @{ Type = 'tooshort'; Results = @(); Message = 'Please enter at least 2 characters to search.' }
+        }
+        $cache = Get-VMonState -Name 'VMonVMCache'
+        if ($null -eq $cache) { $cache = @() }
+        $results = @($cache | Where-Object {
+            ($_.Name -like "*$term*") -or ($_.IP -match [regex]::Escape($term))
+        })
+        Write-Host "Search for '$term' returned $($results.Count) result(s)." -ForegroundColor Cyan
+        if ($results.Count -eq 0) {
+            return @{ Type = 'none'; Results = @(); Message = 'No VM found in cache.' }
+        }
+        elseif ($results.Count -eq 1) {
+            $vm = $results[0]
+            return @{ Type = 'single'; Results = @($vm); Message = "MATCH FOUND: $($vm.Name)" }
+        }
+        else {
+            return @{ Type = 'multiple'; Results = $results; Message = "$($results.Count) matches found." }
+        }
+    }
+
+    # --- Initialize empty state ---
+    Set-VMonState -Name 'VMonVMCache' -Value @()
+    Set-VMonState -Name 'VMonConnectedServers' -Value @()
+    Set-VMonState -Name 'VMonConnectionErrors' -Value @()
+
+    # --- Connect to vCenter ---
+    Write-Host "`n--- STARTING CONNECTION SEQUENCE ---" -ForegroundColor Cyan
+    $startupResult = Connect-VMonServers
+    Write-Host "VERIFIED CONNECTIONS: $($startupResult.ConnectedServers -join ', ')" -ForegroundColor Green
+    Write-Host "CACHED VMs: $($startupResult.VMCount)" -ForegroundColor Green
+    foreach ($err in $startupResult.Errors) {
+        Write-Host "ERROR: $err" -ForegroundColor Red
+    }
+
+    # =====================================================================
+    # 2. ENDPOINT & ROUTES
+    # =====================================================================
     Add-PodeEndpoint -Address 0.0.0.0 -Port 8080 -Protocol Http
     Write-PodeHost "[VMon] Listening on 0.0.0.0:8080"
 
