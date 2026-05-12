@@ -278,8 +278,12 @@
 
             async function checkStatus() {
                 try {
+                    console.log('[VMon] Fetching /api/status...');
                     const res = await fetch('/api/status');
-                    const data = await res.json();
+                    console.log('[VMon] /api/status response:', res.status, res.statusText, 'Content-Type:', res.headers.get('content-type'));
+                    const text = await res.text();
+                    console.log('[VMon] /api/status raw body (first 200 chars):', text.substring(0, 200));
+                    const data = JSON.parse(text);
                     if (data.connected) {
                         statusDot.classList.add('connected');
                         statusText.textContent = 'Connected to vCenter';
@@ -290,6 +294,7 @@
                         vmCount.textContent = '';
                     }
                 } catch (err) {
+                    console.error('[VMon] /api/status failed:', err);
                     statusDot.classList.remove('connected');
                     statusText.textContent = 'Server unreachable';
                     vmCount.textContent = '';
@@ -306,8 +311,13 @@
                 resultsDiv.innerHTML = '<div class="message">Searching...</div>';
 
                 try {
-                    const res = await fetch('/api/search?q=' + encodeURIComponent(query));
-                    const data = await res.json();
+                    const url = '/api/search?q=' + encodeURIComponent(query);
+                    console.log('[VMon] Fetching', url);
+                    const res = await fetch(url);
+                    console.log('[VMon] /api/search response:', res.status, res.statusText, 'Content-Type:', res.headers.get('content-type'));
+                    const text = await res.text();
+                    console.log('[VMon] /api/search raw body (first 200 chars):', text.substring(0, 200));
+                    const data = JSON.parse(text);
 
                     if (!res.ok) {
                         resultsDiv.innerHTML = '<div class="message error">' + escapeHtml(data.error || 'Search failed') + '</div>';
@@ -344,6 +354,7 @@
                         resultsDiv.appendChild(item);
                     });
                 } catch (err) {
+                    console.error('[VMon] /api/search failed:', err);
                     resultsDiv.innerHTML = '<div class="message error">Search failed: ' + escapeHtml(err.message) + '</div>';
                 }
             }
@@ -353,6 +364,7 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(function() { controller.abort(); }, 30000);
                 try {
+                    console.log('[VMon] POST', url, 'vmId:', vmId);
                     const res = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -360,7 +372,10 @@
                         signal: controller.signal
                     });
                     clearTimeout(timeoutId);
-                    const data = await res.json();
+                    console.log('[VMon]', url, 'response:', res.status, res.statusText, 'Content-Type:', res.headers.get('content-type'));
+                    const text = await res.text();
+                    console.log('[VMon]', url, 'raw body (first 200 chars):', text.substring(0, 200));
+                    const data = JSON.parse(text);
 
                     if (res.ok && data.success) {
                         showToast(data.message, 'success');
@@ -369,6 +384,7 @@
                         showToast(data.error || 'Action failed', 'error');
                     }
                 } catch (err) {
+                    console.error('[VMon]', url, 'failed:', err);
                     showToast('Error: ' + err.message, 'error');
                 }
             }
