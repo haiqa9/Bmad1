@@ -1,6 +1,6 @@
 # server.ps1
 # Pode-based web server for VMon-Web
-# Fully self-contained — all logic defined inside Start-PodeServer to avoid runscope issues.
+# Fully self-contained — all logic defined inside Start-PodeServer.
 
 # --- 0. CHECK PREREQUISITES ---
 if (-not (Get-Module -ListAvailable Pode)) {
@@ -16,14 +16,25 @@ if (-not (Get-Module -ListAvailable VMware.VimAutomation.Core)) {
 Import-Module Pode
 Import-Module VMware.VimAutomation.Core -ErrorAction Stop
 
-# Capture script root before entering Pode
-$ServerRoot = $PSScriptRoot
+# Capture views directory with absolute path before entering Pode
+$ViewsDir = Join-Path $PSScriptRoot 'views'
 
 # --- 1. START PODE SERVER ---
 Start-PodeServer -Threads 2 {
 
     # =====================================================================
-    # ALL LOGIC DEFINED INLINE — no external dot-sourcing
+    # VIEW ENGINE SETUP — serves .html files from the views folder
+    # =====================================================================
+    Set-PodeViewEngine -Type Pode -Extension '.html' -ScriptBlock {
+        param($path, $data)
+        return (Get-Content -Path $path -Raw)
+    }
+
+    # Register the views folder so Pode can resolve view paths across runspaces
+    Add-PodeViewFolder -Name 'views' -Source $ViewsDir
+
+    # =====================================================================
+    # INLINE LOGIC — credentials, connection, search, VM actions
     # =====================================================================
 
     # -- Credentials --
@@ -380,33 +391,11 @@ Start-PodeServer -Threads 2 {
     }
 
     # =====================================================================
-    # SERVE FRONTEND
+    # SERVE FRONTEND — uses Pode's view engine (renders as HTML page)
     # =====================================================================
-    # --- PRE-LOAD FRONTEND HTML ---
-    # Read the file once at startup so the route doesn't need filesystem access.
-    $htmlPath = Join-Path $ServerRoot 'views/index.html'
-    $script:IndexHtml = $null
-    if (Test-Path $htmlPath) {
-        $script:IndexHtml = Get-Content -Raw -Path $htmlPath -ErrorAction Stop
-        Write-PodeHost "[VMon] Pre-loaded index.html ($( [System.Text.Encoding]::UTF8.GetByteCount($script:IndexHtml) ) bytes)"
-    } else {
-        Write-PodeHost "[VMon] WARNING: index.html not found at $htmlPath"
-    }
-
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
-        try {
-            if ($script:IndexHtml) {
-                Write-PodeHtmlResponse -Value $script:IndexHtml
-            } else {
-                Set-PodeResponseStatus -Code 500
-                Write-PodeJsonResponse -Value @{ error = 'index.html not loaded' }
-            }
-        }
-        catch {
-            Write-PodeHost "[VMon] ERROR serving /: $($_.Exception.Message)"
-            Set-PodeResponseStatus -Code 500
-            Write-PodeJsonResponse -Value @{ error = $_.Exception.Message }
-        }
+        # Out-PodeView is the conceptual name; the actual cmdlet is Write-PodeViewResponse
+        Write-PodeViewResponse -Path 'index' -Folder 'views'
     }
 
     Write-PodeHost "[VMon] Server ready. API routes registered."
