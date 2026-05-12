@@ -1,6 +1,6 @@
 # server.ps1
 # Pode-based web server for VMon-Web
-# Serves a REST API and a browser-based frontend for VM search and power management.
+# Fully self-contained — all logic defined inside Start-PodeServer to avoid runscope issues.
 
 # --- 0. CHECK PREREQUISITES ---
 if (-not (Get-Module -ListAvailable Pode)) {
@@ -14,25 +14,152 @@ if (-not (Get-Module -ListAvailable VMware.VimAutomation.Core)) {
 }
 
 Import-Module Pode
+Import-Module VMware.VimAutomation.Core -ErrorAction Stop
 
-# Capture script root BEFORE Start-PodeServer so we can store it in Pode state
+# Capture script root before entering Pode
 $ServerRoot = $PSScriptRoot
 
 # --- 1. START PODE SERVER ---
-Start-PodeServer -Threads 1 {
+Start-PodeServer -Threads 2 {
 
-    # Store server root in Pode's shared state (accessible from all routes)
-    Set-PodeState -Name 'VMonServerRoot' -Value $ServerRoot
+    # =====================================================================
+    # ALL LOGIC DEFINED INLINE — no external dot-sourcing
+    # =====================================================================
 
-    # Import shared logic INSIDE Pode's runspace
-    $logicPath = Join-Path (Get-PodeState -Name 'VMonServerRoot') 'VMon-Logic.ps1'
-    if (Test-Path $logicPath) {
-        . $logicPath
-        Write-PodeHost "[VMon] Loaded VMon-Logic.ps1 from: $logicPath"
-    } else {
-        Write-PodeHost "[VMon] FATAL: VMon-Logic.ps1 not found at: $logicPath"
-        exit 1
+    # -- Credentials --
+    $vCenterGroup1 = "192.168.1.240", "192.168.2.250"
+    $user1 = "haiqa@vsphere.local"
+    $pass1 = 'Expert@ef4' | ConvertTo-SecureString -AsPlainText -Force
+    $cred1 = New-Object System.Management.Automation.PSCredential($user1, $pass1)
+
+    $vCenterGroup2 = "192.168.1.241"
+    $user2 = "administrator@vsphere.local"
+    $pass2 = 'Experts@0ffice' | ConvertTo-SecureString -AsPlainText -Force
+    $cred2 = New-Object System.Management.Automation.PSCredential($user2, $pass2)
+
+    # -- State --
+    $script:LocalCache      = @()
+    $script:ConnectionErrors = @()
+
+    # -- Connection --
+    function Connect-VMonServers {
+        param([switch]$Silent)
+        $log = { param([string]$msg, [string]$color)
+            if (-not $Silent) {
+                if ($color) { Write-Host $msg -ForegroundColor $color }
+                else        { Write-Host $msg }
+            }
+        }
+        try {
+            Set-PowerCLIConfiguration -Scope Session -ParticipateInCEIP $false -InvalidCertificateAction Ignore -Confirm:$false | Out-Null
+        }
+        catch {
+            & $log "WARNING: Set-PowerCLIConfiguration failed: $($_.Exception.Message)" "Yellow"
+        }
+
+        $script:ConnectionErrors = @()
+        $connectedServers = @()
+
+        foreach ($server in $vCenterGroup1) {
+            try {
+                & $log "Connecting to $server (Group 1)..." "Cyan"
+                Connect-VIServer -Server $server -Credential $cred1 -ErrorAction Stop | Out-Null
+                $connectedServers += $server
+                & $log "  OK: $server connected." "Green"
+            }
+            catch {
+                $err = "FAILED: $server - $($_.Exception.Message)"
+                $script:ConnectionErrors += $err
+                & $log "  $err" "Red"
+            }
+        }
+
+        foreach ($server in $vCenterGroup2) {
+            try {
+                & $log "Connecting to $server (Group 2)..." "Cyan"
+                Connect-VIServer -Server $server -Credential $cred2 -ErrorAction Stop | Out-Null
+                $connectedServers += $server
+                & $log "  OK: $server connected." "Green"
+            }
+            catch {
+                $err = "FAILED: $server - $($_.Exception.Message)"
+                $script:ConnectionErrors += $err
+                & $log "  $err" "Red"
+            }
+        }
+
+        $vmCount = 0
+        if ($connectedServers.Count -gt 0) {
+            try {
+                & $log "Building VM cache from $($connectedServers.Count) server(s)..." "Gray"
+                $script:LocalCache = Get-VM | Select-Object Name, Id, @{N='IP'; E={$_.Guest.IPAddress[0]}}, @{N='vCenter'; E={$_.Uid.Split('@')[1].Split(':')[0]}}, @{N='PowerState'; E={$_.PowerState}}
+                $vmCount = $script:LocalCache.Count
+                & $log "Cache built: $vmCount VMs." "Green"
+            }
+            catch {
+                $err = "FAILED: Get-VM cache build - $($_.Exception.Message)"
+                $script:ConnectionErrors += $err
+                $script:LocalCache = @()
+                & $log "  $err" "Red"
+            }
+        }
+        else {
+            $script:LocalCache = @()
+            & $log "No vCenter connections established. Cache is empty." "Yellow"
+        }
+
+        return @{
+            ConnectedServers = $connectedServers
+            VMCount          = $vmCount
+            Errors           = $script:ConnectionErrors
+        }
     }
+
+    function Reconnect-VMonServers {
+        try { Disconnect-VIServer -Server * -Confirm:$false -ErrorAction SilentlyContinue | Out-Null }
+        catch {}
+        $script:LocalCache = @()
+        return Connect-VMonServers
+    }
+
+    function Get-VMonStatus {
+        $connected = ($global:DefaultVIServers.Count -gt 0)
+        return @{
+            Connected = $connected
+            VMCount   = $script:LocalCache.Count
+            Servers   = @($global:DefaultVIServers | Select-Object -ExpandProperty Name)
+            Errors    = $script:ConnectionErrors
+        }
+    }
+
+    function Search-VMonCache {
+        param([string]$SearchTerm)
+        $term = $SearchTerm.Trim()
+        if ([string]::IsNullOrWhiteSpace($term)) {
+            return @{ Type = 'empty'; Results = @(); Message = 'Please enter a search term.' }
+        }
+        if ($term.Length -lt 2) {
+            return @{ Type = 'tooshort'; Results = @(); Message = 'Please enter at least 2 characters to search.' }
+        }
+        $results = @($script:LocalCache | Where-Object {
+            ($_.Name -like "*$term*") -or ($_.IP -match [regex]::Escape($term))
+        })
+        Write-Host "Search for '$term' returned $($results.Count) result(s)." -ForegroundColor Cyan
+        if ($results.Count -eq 0) {
+            return @{ Type = 'none'; Results = @(); Message = 'No VM found in cache.' }
+        }
+        elseif ($results.Count -eq 1) {
+            $vm = $results[0]
+            return @{ Type = 'single'; Results = @($vm); Message = "MATCH FOUND: $($vm.Name)" }
+        }
+        else {
+            return @{ Type = 'multiple'; Results = $results; Message = "$($results.Count) matches found." }
+        }
+    }
+
+    # =====================================================================
+    # END INLINE LOGIC
+    # =====================================================================
 
     # Listen on all interfaces so LAN clients can reach us
     Add-PodeEndpoint -Address 0.0.0.0 -Port 8080 -Protocol Http
@@ -51,7 +178,7 @@ Start-PodeServer -Threads 1 {
         Set-PodeResponseStatus -Code 204
     }
 
-    # --- 2. CONNECT TO VCENTER ON STARTUP ---
+    # --- CONNECT TO VCENTER ON STARTUP ---
     Write-PodeHost "[VMon] Starting vCenter connection sequence..."
     $startupResult = Connect-VMonServers -Silent
     Write-PodeHost "[VMon] vCenter startup result:"
@@ -61,7 +188,9 @@ Start-PodeServer -Threads 1 {
         Write-PodeHost "  ERROR: $err"
     }
 
-    # --- 3. API ROUTES ---
+    # =====================================================================
+    # API ROUTES
+    # =====================================================================
 
     # Health / Status
     Add-PodeRoute -Method Get -Path '/api/status' -ScriptBlock {
@@ -85,7 +214,7 @@ Start-PodeServer -Threads 1 {
     Add-PodeRoute -Method Post -Path '/api/reconnect' -ScriptBlock {
         try {
             Write-PodeHost "[VMon] Reconnect requested from $($WebEvent.Request.RemoteEndPoint)"
-            $result = Reconnect-VMonServers -Silent
+            $result = Reconnect-VMonServers
             Write-PodeJsonResponse -Value @{
                 success          = ($result.ConnectedServers.Count -gt 0)
                 connectedServers = $result.ConnectedServers
@@ -121,7 +250,6 @@ Start-PodeServer -Threads 1 {
 
             $result = Search-VMonCache -SearchTerm $q
 
-            # Flatten results for JSON serialization
             $output = @($result.Results | ForEach-Object {
                 @{
                     name       = $_.Name
@@ -173,7 +301,6 @@ Start-PodeServer -Threads 1 {
                 return
             }
 
-            # Validate VM exists before attempting power action
             $vm = $null
             try {
                 $vm = Get-VM -Id $vmId -ErrorAction Stop
@@ -227,7 +354,6 @@ Start-PodeServer -Threads 1 {
                 return
             }
 
-            # Validate VM exists before attempting shutdown
             $vm = $null
             try {
                 $vm = Get-VM -Id $vmId -ErrorAction Stop
@@ -253,10 +379,12 @@ Start-PodeServer -Threads 1 {
         }
     }
 
-    # --- 4. SERVE FRONTEND ---
+    # =====================================================================
+    # SERVE FRONTEND
+    # =====================================================================
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
         try {
-            $root = Get-PodeState -Name 'VMonServerRoot'
+            $root = Get-PodeState -Name 'VMonRoot'
             $htmlPath = Join-Path $root 'views/index.html'
             Write-PodeHost "[VMon] Resolving index.html at: $htmlPath"
             if (Test-Path $htmlPath) {
