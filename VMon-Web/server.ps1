@@ -382,19 +382,24 @@ Start-PodeServer -Threads 2 {
     # =====================================================================
     # SERVE FRONTEND
     # =====================================================================
+    # --- PRE-LOAD FRONTEND HTML ---
+    # Read the file once at startup so the route doesn't need filesystem access.
+    $htmlPath = Join-Path $ServerRoot 'views/index.html'
+    $script:IndexHtml = $null
+    if (Test-Path $htmlPath) {
+        $script:IndexHtml = Get-Content -Raw -Path $htmlPath -ErrorAction Stop
+        Write-PodeHost "[VMon] Pre-loaded index.html ($( [System.Text.Encoding]::UTF8.GetByteCount($script:IndexHtml) ) bytes)"
+    } else {
+        Write-PodeHost "[VMon] WARNING: index.html not found at $htmlPath"
+    }
+
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
         try {
-            $root = Get-PodeState -Name 'VMonRoot'
-            $htmlPath = Join-Path $root 'views/index.html'
-            Write-PodeHost "[VMon] Resolving index.html at: $htmlPath"
-            if (Test-Path $htmlPath) {
-                $html = Get-Content -Raw -Path $htmlPath -ErrorAction Stop
-                Write-PodeHost "[VMon] Serving index.html ($( [System.Text.Encoding]::UTF8.GetByteCount($html) ) bytes)"
-                Write-PodeHtmlResponse -Value $html
+            if ($script:IndexHtml) {
+                Write-PodeHtmlResponse -Value $script:IndexHtml
             } else {
-                Write-PodeHost "[VMon] ERROR: index.html not found at $htmlPath"
                 Set-PodeResponseStatus -Code 500
-                Write-PodeJsonResponse -Value @{ error = 'index.html not found' }
+                Write-PodeJsonResponse -Value @{ error = 'index.html not loaded' }
             }
         }
         catch {
