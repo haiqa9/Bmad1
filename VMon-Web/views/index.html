@@ -72,6 +72,52 @@
             color: #888;
         }
 
+        .reconnect-btn {
+            padding: 6px 14px;
+            font-size: 0.85em;
+            background: #ff5252;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 12px;
+        }
+
+        .reconnect-btn:hover {
+            background: #ff1744;
+        }
+
+        .conn-errors {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 0.85em;
+            color: #ff8a80;
+            display: none;
+        }
+
+        .conn-errors.show {
+            display: block;
+        }
+
+        .conn-errors .err-title {
+            color: #ff5252;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .conn-errors ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .conn-errors li {
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
         .search-section {
             display: flex;
             gap: 10px;
@@ -244,7 +290,15 @@
                 <div class="status-dot" id="statusDot"></div>
                 <span id="statusText">Checking connection...</span>
             </div>
-            <div class="vm-count" id="vmCount"></div>
+            <div>
+                <span class="vm-count" id="vmCount"></span>
+                <button class="reconnect-btn" id="reconnectBtn" style="display:none">Reconnect</button>
+            </div>
+        </div>
+
+        <div class="conn-errors" id="connErrors">
+            <div class="err-title">Connection errors:</div>
+            <ul id="connErrorsList"></ul>
         </div>
 
         <div class="search-section">
@@ -268,6 +322,9 @@
             const statusText  = document.getElementById('statusText');
             const vmCount     = document.getElementById('vmCount');
             const toast       = document.getElementById('toast');
+            const reconnectBtn  = document.getElementById('reconnectBtn');
+            const connErrors    = document.getElementById('connErrors');
+            const connErrorsList = document.getElementById('connErrorsList');
 
             function showToast(message, type) {
                 toast.textContent = message;
@@ -284,20 +341,77 @@
                     const text = await res.text();
                     console.log('[VMon] /api/status raw body (first 200 chars):', text.substring(0, 200));
                     const data = JSON.parse(text);
+
+                    // Clear previous errors
+                    connErrors.classList.remove('show');
+                    connErrorsList.innerHTML = '';
+
                     if (data.connected) {
                         statusDot.classList.add('connected');
                         statusText.textContent = 'Connected to vCenter';
                         vmCount.textContent = data.vmCount + ' VMs cached';
+                        reconnectBtn.style.display = 'none';
                     } else {
                         statusDot.classList.remove('connected');
                         statusText.textContent = 'Disconnected';
                         vmCount.textContent = '';
+                        reconnectBtn.style.display = 'inline-block';
+
+                        // Show connection errors if any
+                        if (data.errors && data.errors.length > 0) {
+                            connErrors.classList.add('show');
+                            data.errors.forEach(function(e) {
+                                const li = document.createElement('li');
+                                li.textContent = e;
+                                connErrorsList.appendChild(li);
+                            });
+                        }
                     }
                 } catch (err) {
                     console.error('[VMon] /api/status failed:', err);
                     statusDot.classList.remove('connected');
                     statusText.textContent = 'Server unreachable';
                     vmCount.textContent = '';
+                    reconnectBtn.style.display = 'inline-block';
+                    connErrors.classList.remove('show');
+                }
+            }
+
+            async function doReconnect() {
+                reconnectBtn.disabled = true;
+                reconnectBtn.textContent = 'Reconnecting...';
+                try {
+                    console.log('[VMon] POST /api/reconnect');
+                    const res = await fetch('/api/reconnect', { method: 'POST' });
+                    const text = await res.text();
+                    const data = JSON.parse(text);
+                    console.log('[VMon] /api/reconnect response:', data);
+
+                    if (data.success) {
+                        showToast('Reconnected! ' + data.vmCount + ' VMs cached.', 'success');
+                        checkStatus();
+                    } else {
+                        showToast('Reconnect failed. See error list below.', 'error');
+                        connErrors.classList.add('show');
+                        connErrorsList.innerHTML = '';
+                        if (data.errors && data.errors.length > 0) {
+                            data.errors.forEach(function(e) {
+                                const li = document.createElement('li');
+                                li.textContent = e;
+                                connErrorsList.appendChild(li);
+                            });
+                        } else {
+                            const li = document.createElement('li');
+                            li.textContent = 'Unknown error during reconnect.';
+                            connErrorsList.appendChild(li);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[VMon] /api/reconnect failed:', err);
+                    showToast('Reconnect failed: ' + err.message, 'error');
+                } finally {
+                    reconnectBtn.disabled = false;
+                    reconnectBtn.textContent = 'Reconnect';
                 }
             }
 
@@ -418,6 +532,9 @@
                     handleAction(action, vmId);
                 }
             });
+
+            // Event listeners
+            reconnectBtn.addEventListener('click', doReconnect);
 
             // Initial status check + polling
             checkStatus();

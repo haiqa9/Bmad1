@@ -15,25 +15,25 @@ if (-not (Get-Module -ListAvailable VMware.VimAutomation.Core)) {
 
 Import-Module Pode
 
-# Capture script root so it's available inside Start-PodeServer's runspace
+# Capture script root so it's available inside Pode's runspace
 $script:ServerRoot = $PSScriptRoot
 
 # --- 1. START PODE SERVER ---
 Start-PodeServer -Threads 1 {
 
-    # Import shared logic INSIDE Pode's runspace so functions are visible to route handlers
+    # Import shared logic INSIDE Pode's runspace
     $logicPath = Join-Path $script:ServerRoot 'VMon-Logic.ps1'
     if (Test-Path $logicPath) {
         . $logicPath
-        Write-PodeHost "Loaded VMon-Logic.ps1 from: $logicPath"
+        Write-PodeHost "[VMon] Loaded VMon-Logic.ps1 from: $logicPath"
     } else {
-        Write-PodeHost "FATAL: VMon-Logic.ps1 not found at: $logicPath"
+        Write-PodeHost "[VMon] FATAL: VMon-Logic.ps1 not found at: $logicPath"
         exit 1
     }
 
     # Listen on all interfaces so LAN clients can reach us
     Add-PodeEndpoint -Address 0.0.0.0 -Port 8080 -Protocol Http
-    Write-PodeHost "Pode endpoint added: 0.0.0.0:8080"
+    Write-PodeHost "[VMon] Pode endpoint added: 0.0.0.0:8080"
 
     # Enable CORS so browsers don't block fetch() when testing locally
     Add-PodeMiddleware -Name 'Cors' -ScriptBlock {
@@ -49,47 +49,49 @@ Start-PodeServer -Threads 1 {
     }
 
     # --- 2. CONNECT TO VCENTER ON STARTUP ---
-    try {
-        $cachedCount = Connect-VMonServers
-        Write-PodeHost "vCenter connections established. $cachedCount VMs cached."
-    }
-    catch {
-        Write-PodeHost "WARNING: Failed to connect to vCenter servers: $($_.Exception.Message)"
+    Write-PodeHost "[VMon] Starting vCenter connection sequence..."
+    $startupResult = Connect-VMonServers -Silent
+    Write-PodeHost "[VMon] vCenter startup result:"
+    Write-PodeHost "  Connected servers: $($startupResult.ConnectedServers -join ', ')"
+    Write-PodeHost "  VM cache count: $($startupResult.VMCount)"
+    foreach ($err in $startupResult.Errors) {
+        Write-PodeHost "  ERROR: $err"
     }
 
-    # --- 3. DEBUG / TEST ROUTE ---
-    Add-PodeRoute -Method Get -Path '/api/test' -ScriptBlock {
+    # --- 3. API ROUTES ---
+
+    # Health / Status
+    Add-PodeRoute -Method Get -Path '/api/status' -ScriptBlock {
         try {
-            Write-PodeHost "DEBUG: /api/test hit from $($WebEvent.Request.RemoteEndPoint)"
+            $status = Get-VMonStatus
             Write-PodeJsonResponse -Value @{
-                test      = 'hello'
-                timestamp = (Get-Date -Format 'o')
-                server    = $env:COMPUTERNAME
+                connected = $status.Connected
+                vmCount   = $status.VMCount
+                servers   = $status.Servers
+                errors    = $status.Errors
             }
         }
         catch {
-            Write-PodeHost "ERROR in /api/test: $($_.Exception.Message)"
+            Write-PodeHost "[VMon] ERROR in /api/status: $($_.Exception.Message)"
             Set-PodeResponseStatus -Code 500
             Write-PodeJsonResponse -Value @{ error = $_.Exception.Message }
         }
     }
 
-    # --- 4. API ROUTES ---
-
-    # Health / Status
-    Add-PodeRoute -Method Get -Path '/api/status' -ScriptBlock {
+    # Reconnect to vCenters (on-demand refresh)
+    Add-PodeRoute -Method Post -Path '/api/reconnect' -ScriptBlock {
         try {
-            Write-PodeHost "DEBUG: /api/status hit"
-            $status = Get-VMonStatus
-            Write-PodeHost "DEBUG: Get-VMonStatus returned Connected=$($status.Connected) VMCount=$($status.VMCount)"
+            Write-PodeHost "[VMon] Reconnect requested from $($WebEvent.Request.RemoteEndPoint)"
+            $result = Reconnect-VMonServers -Silent
             Write-PodeJsonResponse -Value @{
-                connected = $status.Connected
-                vmCount   = $status.VMCount
-                servers   = $status.Servers
+                success          = ($result.ConnectedServers.Count -gt 0)
+                connectedServers = $result.ConnectedServers
+                vmCount          = $result.VMCount
+                errors           = $result.Errors
             }
         }
         catch {
-            Write-PodeHost "ERROR in /api/status: $($_.Exception.Message)"
+            Write-PodeHost "[VMon] ERROR in /api/reconnect: $($_.Exception.Message)"
             Set-PodeResponseStatus -Code 500
             Write-PodeJsonResponse -Value @{ error = $_.Exception.Message }
         }
@@ -98,7 +100,6 @@ Start-PodeServer -Threads 1 {
     # Search VMs
     Add-PodeRoute -Method Get -Path '/api/search' -ScriptBlock {
         try {
-            Write-PodeHost "DEBUG: /api/search hit"
             $q = $WebEvent.Query['q']
             if ($q -is [array]) { $q = $q[0] }
 
@@ -135,7 +136,7 @@ Start-PodeServer -Threads 1 {
             }
         }
         catch {
-            Write-PodeHost "ERROR in /api/search: $($_.Exception.Message)"
+            Write-PodeHost "[VMon] ERROR in /api/search: $($_.Exception.Message)"
             Set-PodeResponseStatus -Code 500
             Write-PodeJsonResponse -Value @{ error = $_.Exception.Message }
         }
@@ -144,7 +145,6 @@ Start-PodeServer -Threads 1 {
     # Power On
     Add-PodeRoute -Method Post -Path '/api/power-on' -ScriptBlock {
         try {
-            Write-PodeHost "DEBUG: /api/power-on hit"
             $body = $WebEvent.Data
             if ($body -is [string]) {
                 try {
@@ -187,7 +187,7 @@ Start-PodeServer -Threads 1 {
             }
         }
         catch {
-            Write-PodeHost "ERROR in /api/power-on: $($_.Exception.Message)"
+            Write-PodeHost "[VMon] ERROR in /api/power-on: $($_.Exception.Message)"
             Set-PodeResponseStatus -Code 500
             Write-PodeJsonResponse -Value @{
                 success = $false
@@ -199,7 +199,6 @@ Start-PodeServer -Threads 1 {
     # Shutdown (graceful guest OS shutdown)
     Add-PodeRoute -Method Post -Path '/api/shutdown' -ScriptBlock {
         try {
-            Write-PodeHost "DEBUG: /api/shutdown hit"
             $body = $WebEvent.Data
             if ($body -is [string]) {
                 try {
@@ -242,7 +241,7 @@ Start-PodeServer -Threads 1 {
             }
         }
         catch {
-            Write-PodeHost "ERROR in /api/shutdown: $($_.Exception.Message)"
+            Write-PodeHost "[VMon] ERROR in /api/shutdown: $($_.Exception.Message)"
             Set-PodeResponseStatus -Code 500
             Write-PodeJsonResponse -Value @{
                 success = $false
@@ -251,9 +250,8 @@ Start-PodeServer -Threads 1 {
         }
     }
 
-    # --- 5. SERVE FRONTEND ---
-    # Use an explicit route for '/' instead of a catch-all static route.
-    # This prevents any risk of the static route intercepting API requests.
+    # --- 4. SERVE FRONTEND ---
+    # Explicit route for '/' — prevents any risk of API route interception.
     Add-PodeRoute -Method Get -Path '/' -ScriptBlock {
         $htmlPath = Join-Path $script:ServerRoot 'views/index.html'
         if (Test-Path $htmlPath) {
@@ -265,5 +263,5 @@ Start-PodeServer -Threads 1 {
         }
     }
 
-    Write-PodeHost "Server ready. API routes registered."
+    Write-PodeHost "[VMon] Server ready. API routes registered."
 }
