@@ -1,0 +1,132 @@
+-- CreateEnum
+CREATE TYPE "AssetType" AS ENUM ('HARDWARE', 'SOFTWARE', 'CLOUD', 'PERIPHERAL');
+
+-- CreateEnum
+CREATE TYPE "LifecycleState" AS ENUM ('REQUESTED', 'PROCURED', 'REGISTERED', 'DEPLOYED', 'MAINTENANCE', 'RETIRED');
+
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('EMPLOYEE', 'DEPT_HEAD', 'IT_OPS', 'IT_ASSET_MANAGER');
+
+-- CreateEnum
+CREATE TYPE "RequestStatus" AS ENUM ('PENDING_MANAGER', 'PENDING_IT', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "Urgency" AS ENUM ('LOW', 'MEDIUM', 'HIGH');
+
+-- CreateEnum
+CREATE TYPE "HistoryType" AS ENUM ('STATUS_CHANGE', 'REASSIGNED', 'MAINTENANCE', 'OTHER');
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "role" "UserRole" NOT NULL,
+    "department" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Asset" (
+    "id" TEXT NOT NULL,
+    "tag" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "type" "AssetType" NOT NULL,
+    "status" "LifecycleState" NOT NULL DEFAULT 'REGISTERED',
+    "costCenter" TEXT NOT NULL,
+    "department" TEXT NOT NULL,
+    "assignedTo" TEXT,
+    "purchaseDate" TIMESTAMP(3),
+    "warrantyExpiry" TIMESTAMP(3),
+    "retiredAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Asset_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SoftwareDetail" (
+    "id" TEXT NOT NULL,
+    "assetId" TEXT NOT NULL,
+    "licenseType" TEXT NOT NULL,
+    "licenseKey" TEXT,
+    "seatsTotal" INTEGER NOT NULL DEFAULT 0,
+    "seatsUsed" INTEGER NOT NULL DEFAULT 0,
+    "renewalDate" TIMESTAMP(3),
+    "vendor" TEXT NOT NULL,
+
+    CONSTRAINT "SoftwareDetail_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AssetRequest" (
+    "id" TEXT NOT NULL,
+    "assetId" TEXT,
+    "requestedBy" TEXT NOT NULL,
+    "department" TEXT NOT NULL,
+    "justification" TEXT NOT NULL,
+    "status" "RequestStatus" NOT NULL DEFAULT 'PENDING_MANAGER',
+    "urgency" "Urgency" NOT NULL DEFAULT 'MEDIUM',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AssetRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ApprovalLog" (
+    "id" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "approverId" TEXT NOT NULL,
+    "stage" TEXT NOT NULL,
+    "decision" TEXT NOT NULL,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ApprovalLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AssetHistory" (
+    "id" TEXT NOT NULL,
+    "assetId" TEXT NOT NULL,
+    "fromStatus" "LifecycleState",
+    "toStatus" "LifecycleState" NOT NULL,
+    "changedBy" TEXT NOT NULL,
+    "changedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "notes" TEXT,
+    "type" "HistoryType" NOT NULL DEFAULT 'STATUS_CHANGE',
+
+    CONSTRAINT "AssetHistory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Asset_tag_key" ON "Asset"("tag");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SoftwareDetail_assetId_key" ON "SoftwareDetail"("assetId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AssetRequest_assetId_key" ON "AssetRequest"("assetId");
+
+-- AddForeignKey
+ALTER TABLE "SoftwareDetail" ADD CONSTRAINT "SoftwareDetail_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AssetRequest" ADD CONSTRAINT "AssetRequest_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalLog" ADD CONSTRAINT "ApprovalLog_requestId_fkey" FOREIGN KEY ("requestId") REFERENCES "AssetRequest"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApprovalLog" ADD CONSTRAINT "ApprovalLog_approverId_fkey" FOREIGN KEY ("approverId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AssetHistory" ADD CONSTRAINT "AssetHistory_assetId_fkey" FOREIGN KEY ("assetId") REFERENCES "Asset"("id") ON DELETE CASCADE ON UPDATE CASCADE;

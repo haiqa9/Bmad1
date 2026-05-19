@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AssetType {
+  HARDWARE
+  SOFTWARE
+  CLOUD
+  PERIPHERAL
+}
+
+enum LifecycleState {
+  REQUESTED
+  PROCURED
+  REGISTERED
+  DEPLOYED
+  MAINTENANCE
+  RETIRED
+}
+
+enum UserRole {
+  EMPLOYEE
+  DEPT_HEAD
+  IT_OPS
+  IT_ASSET_MANAGER
+}
+
+enum RequestStatus {
+  PENDING_MANAGER
+  PENDING_IT
+  APPROVED
+  REJECTED
+}
+
+enum Urgency {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum HistoryType {
+  STATUS_CHANGE
+  REASSIGNED
+  MAINTENANCE
+  OTHER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole
+  department String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  approvals ApprovalLog[]
+}
+
+model Asset {
+  id             String         @id @default(cuid())
+  tag            String         @unique
+  title          String
+  type           AssetType
+  status         LifecycleState @default(REGISTERED)
+  costCenter     String
+  department     String
+  assignedTo     String?
+  purchaseDate   DateTime?
+  warrantyExpiry DateTime?
+  retiredAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  softwareDetail SoftwareDetail?
+  request        AssetRequest?
+  history        AssetHistory[]
+}
+
+model SoftwareDetail {
+  id          String    @id @default(cuid())
+  assetId     String    @unique
+  asset       Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  licenseType String    // Perpetual, Subscription, Open Source
+  licenseKey  String?
+  seatsTotal  Int       @default(0)
+  seatsUsed   Int       @default(0)
+  renewalDate DateTime?
+  vendor      String
+}
+
+model AssetRequest {
+  id            String        @id @default(cuid())
+  assetId       String?       @unique
+  asset         Asset?        @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  requestedBy   String
+  department    String
+  justification String
+  status        RequestStatus @default(PENDING_MANAGER)
+  urgency       Urgency       @default(MEDIUM)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  approvals ApprovalLog[]
+}
+
+model ApprovalLog {
+  id        String   @id @default(cuid())
+  requestId String
+  request   AssetRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approverId String
+  approver  User     @relation(fields: [approverId], references: [id], onDelete: Cascade)
+  stage     String   // MANAGER or IT
+  decision  String   // APPROVED or REJECTED
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model AssetHistory {
+  id        String      @id @default(cuid())
+  assetId   String
+  asset     Asset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  fromStatus LifecycleState?
+  toStatus  LifecycleState
+  changedBy String
+  changedAt DateTime    @default(now())
+  notes     String?
+  type      HistoryType @default(STATUS_CHANGE)
+}

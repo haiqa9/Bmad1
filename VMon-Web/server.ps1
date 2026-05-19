@@ -197,8 +197,8 @@ Start-PodeServer -Threads 1 {
     # =====================================================================
     # 2. ENDPOINT & ROUTES
     # =====================================================================
-    Add-PodeEndpoint -Address 0.0.0.0 -Port 8080 -Protocol Http
-    Write-PodeHost "[VMon] Listening on 0.0.0.0:8080"
+    Add-PodeEndpoint -Address 127.0.0.1 -Port 8080 -Protocol Http
+    Write-PodeHost "[VMon] Listening on http://127.0.0.1:8080"
 
     # CORS middleware
     Add-PodeMiddleware -Name 'Cors' -ScriptBlock {
