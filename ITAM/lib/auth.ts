@@ -1,10 +1,15 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -20,7 +25,7 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         });
 
-        if (!user) {
+        if (!user || !user.password) {
           return null;
         }
 
@@ -44,11 +49,54 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ account, profile }) {
+      if (account?.provider === "google") {
+        const email = (profile as any)?.email as string;
+        const hostedDomain = (profile as any)?.hd as string | undefined;
+
+        // Restrict sign-in to @expertflow.com domain only
+        const isAllowed =
+          email?.endsWith("@expertflow.com") ||
+          hostedDomain === "expertflow.com";
+
+        if (!isAllowed) {
+          return false;
+        }
+
+        // Find or create the user in the database
+        const existingUser = await prisma.user.findUnique({
+          where: { email },
+        });
+
+        if (!existingUser) {
+          await prisma.user.create({
+            data: {
+              email,
+              name: (profile as any)?.name || email.split("@")[0],
+              role: "EMPLOYEE",
+              department: "General",
+            },
+          });
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, account }) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.department = user.department;
+        if (account?.provider === "google") {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = dbUser.role;
+            token.department = dbUser.department;
+          }
+        } else {
+          token.id = user.id;
+          token.role = (user as any).role;
+          token.department = (user as any).department;
+        }
       }
       return token;
     },

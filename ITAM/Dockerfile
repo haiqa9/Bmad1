@@ -1,0 +1,49 @@
+# Stage 1: Install dependencies
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Stage 2: Build the app
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Generate Prisma client and compile the seeder script to JS for production compatibility
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npx prisma generate
+RUN npx tsc prisma/seed.ts --module commonjs --target es2020 --esModuleInterop --moduleResolution node --skipLibCheck
+RUN npm run build
+
+# Stage 3: Runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/package.json ./package.json
+
+# Leverage Next.js standalone output tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+# Explicitly copy prisma.config.js so Prisma CLI can find it in production
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./prisma.config.js
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Start the standalone server
+CMD ["node", "server.js"]
