@@ -245,6 +245,58 @@
 
 ---
 
+## Epic 6: Sheet Data Management
+> **Goal:** Import and manage legacy Excel sheet data within the ITAM portal for IT Ops and Asset Managers.
+
+### Story 6.1 — Dynamic Sheet Viewer
+**As an** IT Ops user, **I want** to view imported Excel sheet data in a tabular format, **so that** I can reference legacy inventory records without opening Excel files.
+
+**Acceptance Criteria:**
+- [ ] 11 sheets available: Laptop Record, Lab Servers, Devices, iLO/iDRAC, Cloud VMs, Lab VMs, Public FQDN, GatePass, Received Items, Ports Detail, Free VMs.
+- [ ] Generic table component renders columns based on sheet configuration.
+- [ ] Pagination (default 25 rows) and global search across all string fields.
+- [ ] Sheet navigation appears in sidebar for IT_OPS and IT_ASSET_MANAGER roles.
+- [ ] Routes: `/dashboard/sheets/:sheetSlug`.
+
+### Story 6.2 — Sheet Entry CRUD
+**As an** IT Asset Manager, **I want** to add, edit, and delete entries in any sheet, **so that** legacy records stay current.
+
+**Acceptance Criteria:**
+- [ ] "Add Entry" modal with fields matching the sheet schema.
+- [ ] "Edit" action on each row opens pre-populated modal.
+- [ ] "Delete" action with confirmation dialog.
+- [ ] API endpoints: `POST /api/sheets/:sheet`, `PATCH /api/sheets/:sheet/:id`, `DELETE /api/sheets/:sheet/:id`.
+- [ ] Only IT_OPS and IT_ASSET_MANAGER can mutate sheet data.
+
+### Story 6.3 — Sheet Data Seeding
+**As a** developer, **I want** to seed all Excel sheet data from JSON on setup, **so that** the system is pre-populated with existing records.
+
+**Acceptance Criteria:**
+- [ ] `prisma/seed.ts` reads `prisma/seed-data.json`.
+- [ ] Maps JSON rows to Prisma models via field mapping configuration.
+- [ ] Chunked inserts (500 rows at a time) for performance.
+- [ ] Clears existing data before seeding to prevent duplicates.
+
+---
+
+## Epic 7: User Management
+> **Goal:** Allow IT Asset Managers to create and manage user accounts without direct database access.
+
+### Story 7.1 — Admin User Management
+**As an** IT Asset Manager, **I want** to view, create, edit, and delete users from the admin dashboard, **so that** I can manage access without SQL.
+
+**Acceptance Criteria:**
+- [ ] Admin dashboard (`/dashboard/admin`) shows quick-link cards + User Management modal.
+- [ ] User list displays: name, email, role, department.
+- [ ] "Add User" form: email, name, password, role (dropdown), department.
+- [ ] "Edit User" updates name, role, department.
+- [ ] "Delete User" with confirmation.
+- [ ] API endpoints: `GET/POST /api/users`, `PATCH/DELETE /api/users/:id`.
+- [ ] Only IT_ASSET_MANAGER can access user management APIs and UI.
+- [ ] Duplicate email prevention.
+
+---
+
 ## Story Map & Priority
 
 | Priority | Epic | Story | Complexity |
@@ -266,6 +318,10 @@
 | P2 | Epic 4 | 4.4 Asset Aging Report | Low |
 | P3 | Epic 5 | 5.1 Maintenance Mode | Low |
 | P3 | Epic 5 | 5.2 Asset Reassignment | Low |
+| P2 | Epic 6 | 6.1 Dynamic Sheet Viewer | Medium |
+| P2 | Epic 6 | 6.2 Sheet Entry CRUD | Medium |
+| P2 | Epic 6 | 6.3 Sheet Data Seeding | Low |
+| P2 | Epic 7 | 7.1 Admin User Management | Medium |
 
 ---
 

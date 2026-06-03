@@ -1,8 +1,8 @@
 # Expertflow ITAM — Complete Application Documentation
 
-> **Version:** 1.0  
-> **Last Updated:** 2026-05-19  
-> **Author:** AI Development Agent  
+> **Version:** 2.0
+> **Last Updated:** 2026-06-03
+> **Author:** AI Development Agent
 
 ---
 
@@ -19,7 +19,8 @@
 9. [Setup & Installation](#9-setup--installation)
 10. [Deployment Guide](#10-deployment-guide)
 11. [File Structure](#11-file-structure)
-12. [Changelog](#12-changelog)
+12. [Security & Pentest](#12-security--pentest)
+13. [Changelog](#13-changelog)
 
 ---
 
@@ -33,6 +34,8 @@
 - Role-based access for IT Asset Managers, IT Ops, Department Heads, and Employees
 - Compliance dashboard with license tracking, aging reports, and visual analytics
 - Lifecycle state management from request through retirement
+- **Excel/Sheet data import and management** for legacy inventory records
+- **User management** for administrators
 
 ### Brand Identity
 The application follows the **Expertflow** corporate brand:
@@ -74,7 +77,13 @@ The application follows the **Expertflow** corporate brand:
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Next.js 16 App Router                    │
+│                         nginx (reverse proxy)               │
+│              Port 80 → 3000, rate limiting, headers         │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Next.js 16 (standalone)                  │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │   Server    │  │   Server    │  │      Client         │  │
 │  │  Components │  │    API      │  │    Components       │  │
@@ -102,12 +111,14 @@ The application follows the **Expertflow** corporate brand:
 - **Singleton Prisma Client** via module pattern to prevent connection exhaustion
 - **Prisma 7 Config** using `prisma.config.ts` instead of inline `datasource url`
 - **JWT Session Strategy** with custom claims for role-based access
+- **Standalone Output** for Docker deployment (`output: "standalone"` in `next.config.ts`)
+- **Security Headers** injected at Next.js layer + nginx
 
 ---
 
 ## 4. Database Schema
 
-### Entity Relationship Diagram
+### Core Entity Relationship Diagram
 
 ```
 ┌─────────────┐       ┌─────────────────┐       ┌─────────────┐
@@ -126,20 +137,18 @@ The application follows the **Expertflow** corporate brand:
         ▼                      │                │ retiredAt   │
 ┌─────────────┐                │                └─────────────┘
 │ ApprovalLog │                │                       │
-├─────────────┤                │                       │
-│ id (PK)     │                │                ┌─────────────┐
-│ requestId   │────────────────┘                │SoftwareDetail│
-│ approverId  │       ┌─────────────────────────├─────────────┤
-│ stage       │       │                         │ id (PK)     │
-│ decision    │       │                         │ assetId(FK) │
-│ notes       │       │                         │ licenseType │
-│ createdAt   │       │                         │ licenseKey  │
-└─────────────┘       │                         │ seatsTotal  │
-                      │                         │ seatsUsed   │
+├─────────────┤                │                ┌─────────────┐
+│ id (PK)     │                │                │SoftwareDetail│
+│ requestId   │────────────────┘                ├─────────────┤
+│ approverId  │       ┌─────────────────────────┤ id (PK)     │
+│ stage       │       │                         │ assetId(FK) │
+│ decision    │       │                         │ licenseType │
+│ notes       │       │                         │ licenseKey  │
+│ createdAt   │       │                         │ seatsTotal  │
+└─────────────┘       │                         │ seatsUsed   │
                       │                         │ renewalDate │
                       │                         │ vendor      │
                       │                         └─────────────┘
-                      │
                       ▼
                ┌─────────────┐
                │AssetHistory │
@@ -155,7 +164,26 @@ The application follows the **Expertflow** corporate brand:
                └─────────────┘
 ```
 
-### Prisma Models
+### Sheet Data Models (Excel Import)
+
+The following models store legacy Excel sheet data imported into the system:
+
+| Model | Purpose |
+|-------|---------|
+| **LaptopRecord** | Employee laptop assignments and specs |
+| **ServerDevice** | Lab server hardware inventory |
+| **Device** | General device inventory (model, serial, IP, battery, status) |
+| **IloIdrac** | Server iLO/iDRAC IP and switch port mappings |
+| **CloudVm** | Cloud VM inventory (IP, FQDN, SSL status, specs) |
+| **LabVm** | Lab VM inventory (host, memory, DNS, SSL) |
+| **PublicFqdn** | Public FQDN mappings and middleware proxies |
+| **GatePass** | Asset gate pass records (issue/receive tracking) |
+| **ReceivedItem** | Inventory receipt log |
+| **PortDetail** | Network switch port assignments |
+| **FreeVm** | Decommissioned / free VM tracking |
+| **Sheet38** | Backup policy and IT policy tracking |
+
+### Prisma Models (Core)
 
 ```prisma
 enum AssetType {
@@ -205,7 +233,7 @@ model User {
   id         String   @id @default(cuid())
   email      String   @unique
   name       String
-  password   String
+  password   String?
   role       UserRole
   department String
   createdAt  DateTime @default(now())
@@ -249,6 +277,7 @@ model AssetRequest {
   assetId       String?       @unique
   asset         Asset?        @relation(fields: [assetId], references: [id], onDelete: SetNull)
   requestedBy   String
+  requestedByName String?
   department    String
   justification String
   status        RequestStatus @default(PENDING_MANAGER)
@@ -288,10 +317,26 @@ model AssetHistory {
 ## 5. Authentication & Authorization
 
 ### NextAuth Configuration
-- **Provider:** Credentials (email + password)
+- **Providers:**
+  - **Credentials** (email + password) — primary
+  - **Google OAuth** — auto-enabled when real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` are configured
+  - **Microsoft Azure AD OAuth** — auto-enabled when real `AZURE_AD_CLIENT_ID` / `AZURE_AD_CLIENT_SECRET` are configured
 - **Session Strategy:** JWT
 - **Password Hashing:** bcryptjs with 10 salt rounds
 - **Custom Claims:** `id`, `email`, `name`, `role`, `department`
+
+### OAuth Security
+- Domain restriction: only `@expertflow.com` emails allowed
+- Google hosted domain verification (`hd` claim)
+- Azure AD user allowlist support via `AZURE_AD_ALLOWED_USERS` env var
+- Auto-user creation for OAuth logins with default `EMPLOYEE` role and `General` department
+- Dummy/placeholder credentials are automatically detected and the provider is disabled
+
+### Login Rate Limiting
+- In-memory rate limiter per email address
+- Window: 60 seconds
+- Max attempts: 5 per window
+- After threshold: `"Too many login attempts. Try again in X seconds."`
 
 ### Role-Based Access Control
 
@@ -299,11 +344,13 @@ model AssetHistory {
 |------|------------|
 | **EMPLOYEE** | Submit asset requests, view own requests |
 | **DEPT_HEAD** | Approve/reject requests from their department, view own requests |
-| **IT_OPS** | Full asset CRUD, IT final approvals, maintenance management |
-| **IT_ASSET_MANAGER** | Full system access: CMDB, compliance, all approvals, maintenance |
+| **IT_OPS** | Full asset CRUD, IT final approvals, maintenance management, sheet data management |
+| **IT_ASSET_MANAGER** | Full system access: CMDB, compliance, all approvals, maintenance, user management, sheet data |
 
 ### Route Protection
-Middleware guards all `/dashboard/*` routes. Unauthenticated users redirect to `/login`.
+- Middleware guards all `/dashboard/*` routes with JWT session check
+- `/dashboard/admin` restricted to `IT_ASSET_MANAGER` only
+- API layer enforces auth independently via `lib/api-auth.ts` helpers
 
 ---
 
@@ -321,7 +368,7 @@ Middleware guards all `/dashboard/*` routes. Unauthenticated users redirect to `
 
 **Query Parameters (GET /api/assets):**
 - `page` (number, default: 1)
-- `limit` (number, default: 20)
+- `limit` (number, default: 20, max: 100)
 - `type` (HARDWARE/SOFTWARE/CLOUD/PERIPHERAL)
 - `status` (LifecycleState)
 - `department` (string)
@@ -368,6 +415,42 @@ Middleware guards all `/dashboard/*` routes. Unauthenticated users redirect to `
 | `/api/compliance/licenses` | GET | Any authenticated | License compliance table |
 | `/api/compliance/aging?minAge=N` | GET | Any authenticated | Hardware aging report |
 
+### Sheets (Excel Data Management)
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/sheets/:sheet` | GET | Any authenticated | List entries for a sheet with pagination, search |
+| `/api/sheets/:sheet` | POST | IT Ops / Asset Mgr | Create new entry |
+| `/api/sheets/:sheet/:id` | PATCH | IT Ops / Asset Mgr | Update entry |
+| `/api/sheets/:sheet/:id` | DELETE | IT Ops / Asset Mgr | Delete entry |
+
+**Available Sheet Slugs:**
+- `laptop-record` — Laptop Record
+- `servers-devices` — Lab Servers
+- `devices` — Devices
+- `iloidrac` — iLO/iDRAC
+- `cloud-vm-list` — Cloud VM List
+- `lab-vm-list` — Lab VM List
+- `public-fqdn` — Public FQDN
+- `gatepass` — GatePass
+- `received-items` — Received Items
+- `ports-detail` — Ports Detail
+- `free-vms` — Free VMs
+
+**Query Parameters (GET /api/sheets/:sheet):**
+- `page` (number, default: 1)
+- `limit` (number, default: 25, max: 100)
+- `q` (search across all string fields)
+
+### Users
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/users` | GET | IT Asset Manager | List all users |
+| `/api/users` | POST | IT Asset Manager | Create new user |
+| `/api/users/:id` | PATCH | IT Asset Manager | Update user |
+| `/api/users/:id` | DELETE | IT Asset Manager | Delete user |
+
 ### Health
 
 | Endpoint | Method | Auth | Description |
@@ -385,7 +468,7 @@ app/
 ├── layout.tsx                 # Root layout (Inter font, metadata)
 ├── page.tsx                   # Landing page (branded hero)
 ├── login/
-│   └── page.tsx               # Sign-in form
+│   └── page.tsx               # Sign-in form (credentials + OAuth)
 ├── dashboard/
 │   ├── layout.tsx             # Sidebar shell with RBAC navigation
 │   ├── page.tsx               # Role-based redirect
@@ -403,7 +486,8 @@ app/
 │   ├── compliance/page.tsx         # Dashboard + charts
 │   ├── compliance/licenses/page.tsx # License table
 │   ├── compliance/aging/page.tsx    # Aging report
-│   └── maintenance/page.tsx         # Maintenance list
+│   ├── maintenance/page.tsx         # Maintenance list
+│   └── sheets/[sheet]/page.tsx      # Dynamic sheet viewer
 ```
 
 ### Reusable Components
@@ -422,6 +506,10 @@ app/
 | `AgingTable` | `components/compliance/aging-table.tsx` | Hardware aging with warranty alerts |
 | `MaintenanceModal` | `components/maintenance/maintenance-modal.tsx` | Set maintenance reason + completion date |
 | `ReassignModal` | `components/maintenance/reassign-modal.tsx` | Reassign asset form |
+| `SheetTable` | `components/sheets/sheet-table.tsx` | Generic paginated table for any sheet |
+| `AddEntryModal` | `components/sheets/add-entry-modal.tsx` | Create new sheet entry |
+| `EditEntryModal` | `components/sheets/edit-entry-modal.tsx` | Edit existing sheet entry |
+| `UserManagementModal` | `components/users/user-management-modal.tsx` | Admin user CRUD |
 | `LogoutButton` | `components/logout-button.tsx` | Sign out button |
 
 ### shadcn/ui Components Used
@@ -443,15 +531,17 @@ app/
 - Health check API at `/api/health`
 
 #### Story 1.2 — Authentication
-- NextAuth.js with credentials provider
+- NextAuth.js with credentials provider + conditional Google/Azure AD OAuth
 - 4 seeded demo users with bcrypt passwords
 - JWT sessions with custom role/department claims
 - Type-safe session via `types/next-auth.d.ts`
+- Login rate limiting (5 attempts / 60 sec per email)
 
 #### Story 1.3 — Role-Based Navigation
 - Dashboard layout with persistent sidebar
 - Conditional menu items per role
 - Role-specific landing pages
+- IT_OPS and IT_ASSET_MANAGER see dynamic Sheet menu items
 
 ### Epic 2: Asset Management (CMDB)
 
@@ -537,6 +627,27 @@ app/
 - History tracked with type REASSIGNED
 - Audit trail visible in asset detail
 
+### Epic 6: Sheet Data Management
+
+#### Story 6.1 — Dynamic Sheet Viewer
+- 11 Excel sheets imported into PostgreSQL via seed script
+- Generic table component auto-renders any sheet's columns
+- Pagination, search across all string fields
+- Role-gated add/edit/delete (IT Ops + Asset Manager)
+
+#### Story 6.2 — Sheet Configuration
+- `lib/sheets.ts` defines slug → Prisma model → headers → fields mapping
+- Sheets: Laptop Record, Lab Servers, Devices, iLO/iDRAC, Cloud VMs, Lab VMs, Public FQDN, GatePass, Received Items, Ports Detail, Free VMs
+
+### Epic 7: User Management
+
+#### Story 7.1 — Admin User CRUD
+- IT Asset Manager can view all users
+- Create new users with email, name, password, role, department
+- Edit existing user details
+- Delete users
+- Accessible from Admin Dashboard via User Management modal
+
 ---
 
 ## 9. Setup & Installation
@@ -558,11 +669,11 @@ npm install
 
 ### Step 3: Start PostgreSQL (Docker)
 ```bash
-docker run -d --name itam-postgres \
-  -e POSTGRES_USER=itam \
-  -e POSTGRES_PASSWORD=itam_dev \
-  -e POSTGRES_DB=itam \
-  -p 5432:5432 \
+docker run -d --name itam-postgres `
+  -e POSTGRES_USER=itam `
+  -e POSTGRES_PASSWORD=itam_dev `
+  -e POSTGRES_DB=itam `
+  -p 5432:5432 `
   postgres:17-alpine
 ```
 
@@ -577,6 +688,16 @@ NEXTAUTH_SECRET=<your-random-32-char-hex>
 Generate secret:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**Optional OAuth (only needed for Google/Azure login):**
+```env
+GOOGLE_CLIENT_ID=your-real-client-id
+GOOGLE_CLIENT_SECRET=your-real-client-secret
+AZURE_AD_CLIENT_ID=your-real-client-id
+AZURE_AD_CLIENT_SECRET=your-real-client-secret
+AZURE_AD_TENANT_ID=common
+AZURE_AD_ALLOWED_USERS=user1@expertflow.com,user2@expertflow.com
 ```
 
 ### Step 5: Database Setup
@@ -612,8 +733,9 @@ NEXTAUTH_SECRET=<strong-random-secret>
 NODE_ENV=production
 ```
 
-### Docker Production (Optional)
-Create a `docker-compose.yml`:
+### Docker Production
+A `docker-compose.yml` and `nginx/nginx.conf` are provided for production deployment:
+
 ```yaml
 version: '3.8'
 services:
@@ -634,9 +756,23 @@ services:
       POSTGRES_DB: itam
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
 volumes:
   postgres_data:
 ```
+
+**Key Production Settings:**
+- `output: "standalone"` in `next.config.ts` for optimized Docker image
+- `poweredByHeader: false` to hide Next.js version
+- Security headers injected by Next.js + nginx
+- Rate limiting configured in nginx
 
 ---
 
@@ -664,6 +800,15 @@ ITAM/
 │   │   │   │   └── route.ts          # GET license table
 │   │   │   └── aging/
 │   │   │       └── route.ts          # GET aging report
+│   │   ├── sheets/
+│   │   │   ├── [sheet]/
+│   │   │   │   ├── route.ts          # GET/POST sheet entries
+│   │   │   │   └── [id]/
+│   │   │   │       └── route.ts      # PATCH/DELETE entry
+│   │   ├── users/
+│   │   │   ├── route.ts              # GET/POST users
+│   │   │   └── [id]/
+│   │   │       └── route.ts          # PATCH/DELETE user
 │   │   ├── auth/
 │   │   │   └── [...nextauth]/
 │   │   │       └── route.ts          # NextAuth handler
@@ -686,7 +831,8 @@ ITAM/
 │   │   ├── compliance/page.tsx       # Compliance dashboard
 │   │   ├── compliance/licenses/page.tsx
 │   │   ├── compliance/aging/page.tsx
-│   │   └── maintenance/page.tsx      # Maintenance list
+│   │   ├── maintenance/page.tsx      # Maintenance list
+│   │   └── sheets/[sheet]/page.tsx   # Dynamic sheet viewer
 │   ├── login/page.tsx                # Sign-in page
 │   ├── page.tsx                      # Landing page
 │   ├── layout.tsx                    # Root layout (Inter font)
@@ -710,42 +856,93 @@ ITAM/
 │   │   ├── maintenance-modal.tsx
 │   │   ├── reassign-modal.tsx
 │   │   └── return-to-service-button.tsx
+│   ├── sheets/
+│   │   ├── sheet-table.tsx
+│   │   ├── add-entry-modal.tsx
+│   │   └── edit-entry-modal.tsx
+│   ├── users/
+│   │   └── user-management-modal.tsx
 │   └── logout-button.tsx
 ├── lib/
 │   ├── prisma.ts                     # Singleton Prisma client
-│   ├── auth.ts                       # NextAuth config
+│   ├── auth.ts                       # NextAuth config + rate limiter + OAuth
+│   ├── api-auth.ts                   # API auth helpers (requireAuth, requireManager)
 │   ├── session.ts                    # Server session helpers
+│   ├── sheets.ts                     # Sheet configuration mapping
 │   └── validations/
 │       └── asset.ts                  # Zod schemas
 ├── prisma/
 │   ├── schema.prisma                 # Full DB schema
 │   ├── prisma.config.ts              # Prisma 7 config
-│   ├── seed.ts                       # Demo users seeder
+│   ├── seed.ts                       # Demo users + sheet data seeder
+│   ├── seed-data.json                # Excel sheet seed data
 │   └── migrations/                   # Migration files
 ├── types/
 │   └── next-auth.d.ts                # Session type extensions
+├── nginx/
+│   └── nginx.conf                    # Production nginx config
 ├── docs/
 │   ├── ITAM-Complete-Documentation.md # This file
 │   ├── Epics-and-Stories.md          # Product requirements
-│   └── Expertflow ITAM Project Specification.md
+│   ├── Expertflow ITAM Project Specification.md
+│   └── PENTEST-REPORT-2026-05-22.md  # Security audit report
 ├── .env                              # Environment variables
 ├── package.json
 ├── tsconfig.json
-├── next.config.ts
-├── tailwind.config.ts
+├── next.config.ts                    # Standalone output + security headers
+├── middleware.ts                     # Route protection + RBAC guards
 └── postcss.config.mjs
 ```
 
 ---
 
-## 12. Demo Accounts
+## 12. Security & Pentest
 
-| Email | Password | Role | Permissions |
-|-------|----------|------|-------------|
-| `employee@expertflow.com` | `password123` | Employee | Submit requests, view own requests |
-| `depthead@expertflow.com` | `password123` | Dept Head | Approve dept requests, view own requests |
-| `itops@expertflow.com` | `password123` | IT Ops | Asset CRUD, IT approvals, maintenance |
-| `assetmgr@expertflow.com` | `password123` | IT Asset Manager | Full system access |
+A mild penetration test was conducted on 2026-05-22 against `http://192.168.1.38:3000`. The full report is available at `docs/PENTEST-REPORT-2026-05-22.md`.
+
+### Remediated Findings
+
+| Severity | Finding | Status |
+|----------|---------|--------|
+| **HIGH** | Unauthenticated API Access | **Fixed** — All `/api/*` endpoints now require session validation via `lib/api-auth.ts` |
+| **HIGH** | Missing Rate Limiting on Login | **Fixed** — In-memory rate limiter: 5 attempts / 60 sec per email |
+| **HIGH** | API Lacks RBAC | **Fixed** — `requireManager()` helper restricts mutations to IT_OPS / IT_ASSET_MANAGER |
+| **MEDIUM** | Missing HTTP Security Headers | **Fixed** — `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` |
+| **MEDIUM** | Pagination Limit Abuse | **Fixed** — All paginated APIs cap `limit` at 100 |
+| **LOW** | Server Technology Disclosure | **Fixed** — `poweredByHeader: false` in `next.config.ts` |
+| **INFO** | Placeholder OAuth Credentials | **Fixed** — Dummy credentials auto-detect and disable provider |
+
+### Positive Security Observations
+- **SQL Injection:** Mitigated by Prisma ORM (parameterized queries)
+- **XSS:** Mitigated by React JSX auto-escaping (no `dangerouslySetInnerHTML` with untrusted data)
+- **Information Disclosure:** `.env`, source maps, Prisma schema not exposed via HTTP
+- **Infrastructure:** Docker daemon socket not mounted; only port 80 exposed externally
+
+### Current Risk Rating: LOW-MEDIUM
+
+---
+
+## 13. Changelog
+
+### v2.0 — 2026-06-03
+- **Added:** Excel/Sheet data management (11 sheets, generic CRUD API + UI)
+- **Added:** User management module (admin-only user CRUD)
+- **Added:** Google OAuth and Microsoft Azure AD OAuth support
+- **Added:** Login rate limiting (5 attempts / 60 sec)
+- **Added:** API authentication helpers (`lib/api-auth.ts`)
+- **Added:** Security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`)
+- **Added:** Standalone output mode for Docker deployment
+- **Added:** nginx production configuration with rate limiting
+- **Fixed:** All API endpoints now require authentication
+- **Fixed:** API mutations restricted to IT_OPS / IT_ASSET_MANAGER roles
+- **Fixed:** Pagination capped at 100 rows across all endpoints
+- **Fixed:** `X-Powered-By` header removed
+
+### v1.0 — 2026-05-19
+- Initial release with core ITAM features
+- Asset management (CMDB), request portal, approval workflow, compliance dashboard
+- NextAuth.js credentials authentication
+- Role-based navigation and access control
 
 ---
 
@@ -782,6 +979,15 @@ REQUESTED → PROCURED → REGISTERED → DEPLOYED → MAINTENANCE → RETIRED
     └───────────┴───────────┴────────────┴────────────┴───────────┘
                         (can transition to RETIRED from any state)
 ```
+
+## Appendix C: Demo Accounts
+
+| Email | Password | Role | Permissions |
+|-------|----------|------|-------------|
+| `employee@expertflow.com` | `password123` | Employee | Submit requests, view own requests |
+| `depthead@expertflow.com` | `password123` | Dept Head | Approve dept requests, view own requests |
+| `itops@expertflow.com` | `password123` | IT Ops | Asset CRUD, IT approvals, maintenance, sheets |
+| `assetmgr@expertflow.com` | `password123` | IT Asset Manager | Full system access + user management |
 
 ---
 
