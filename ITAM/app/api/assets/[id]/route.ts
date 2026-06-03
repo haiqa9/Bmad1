@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { updateAssetSchema } from "@/lib/validations/asset";
 import { LifecycleState } from "@prisma/client";
+import { requireAuth, requireManager } from "@/lib/api-auth";
 
 // GET /api/assets/:id - Get single asset
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const { id } = await params;
     const asset = await prisma.asset.findUnique({
@@ -39,6 +43,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const token = await requireManager(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const body = await req.json();
     const parsed = updateAssetSchema.parse(body);
@@ -130,6 +137,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const token = await requireManager(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const { id } = await params;
     const existing = await prisma.asset.findUnique({

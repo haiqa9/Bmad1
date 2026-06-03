@@ -11,7 +11,11 @@ export default async function NewRequestPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <RequestForm userEmail={user.email} userDepartment={user.department} />
+      <RequestForm
+        userEmail={user.email}
+        userDepartment={user.department}
+        userRole={user.role}
+      />
     </div>
   );
 }

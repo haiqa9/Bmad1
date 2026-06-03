@@ -1,0 +1,84 @@
+EXIT CODE: 0
+
+=== BUILD LOG TAIL ===
+#13 [builder 4/7] COPY . .
+#13 DONE 0.2s
+
+#14 [builder 5/7] RUN npx prisma generate
+#14 4.770 Loaded Prisma config from prisma.config.js.
+#14 4.770 
+#14 4.977 Prisma schema loaded from prisma/schema.prisma.
+#14 6.002 
+#14 6.002 ✔ Generated Prisma Client (v7.8.0) to ./node_modules/@prisma/client in 594ms
+#14 6.002 
+#14 6.002 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#14 6.002 
+#14 6.002 
+#14 6.076 npm notice
+#14 6.076 npm notice New major version of npm available! 10.8.2 -> 11.14.1
+#14 6.076 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.14.1
+#14 6.076 npm notice To update run: npm install -g npm@11.14.1
+#14 6.076 npm notice
+#14 DONE 6.2s
+
+#15 [builder 6/7] RUN npx tsc prisma/seed.ts --module commonjs --target es2020 --esModuleInterop --moduleResolution node --skipLibCheck
+#15 DONE 6.1s
+
+#16 [builder 7/7] RUN npm run build
+#16 0.856 
+#16 0.856 > itam-temp@0.1.0 build
+#16 0.856 > next build
+#16 0.856 
+#16 2.272 ▲ Next.js 16.2.6 (Turbopack)
+#16 2.274 
+#16 2.283 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+#16 2.364   Creating an optimized production build ...
+#16 20.02 ✓ Compiled successfully in 17.1s
+#16 20.02   Running TypeScript ...
+#16 38.27 Failed to type check.
+#16 38.27 
+#16 38.27 ./app/dashboard/admin/users/page.tsx:255:60
+#16 38.27 Type error: Type 'string | null' is not assignable to type 'string'.
+#16 38.27   Type 'null' is not assignable to type 'string'.
+#16 38.27 
+#16 38.27   [90m253 |[0m                 <[33mSelect[0m
+#16 38.27   [90m254 |[0m                   value={form.role}
+#16 38.27 [31m[1m>[0m [90m255 |[0m                   onValueChange={(v) => setForm({ ...form, role: v })}
+#16 38.27   [90m    |[0m                                                            [31m[1m^[0m
+#16 38.27   [90m256 |[0m                 >
+#16 38.27   [90m257 |[0m                   <[33mSelectTrigger[0m className=[32m"w-full"[0m>
+#16 38.27   [90m258 |[0m                     <[33mSelectValue[0m />
+#16 38.57 Next.js build worker exited with code: 1 and signal: null
+#16 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [builder 7/7] RUN npm run build:
+38.27   Type 'null' is not assignable to type 'string'.
+38.27 
+38.27   [90m253 |[0m                 <[33mSelect[0m
+38.27   [90m254 |[0m                   value={form.role}
+38.27 [31m[1m>[0m [90m255 |[0m                   onValueChange={(v) => setForm({ ...form, role: v })}
+38.27   [90m    |[0m                                                            [31m[1m^[0m
+38.27   [90m256 |[0m                 >
+38.27   [90m257 |[0m                   <[33mSelectTrigger[0m className=[32m"w-full"[0m>
+38.27   [90m258 |[0m                     <[33mSelectValue[0m />
+38.57 Next.js build worker exited with code: 1 and signal: null
+------
+Dockerfile:20
+
+--------------------
+
+  18 |     RUN npx prisma generate
+
+  19 |     RUN npx tsc prisma/seed.ts --module commonjs --target es2020 --esModuleInterop --moduleResolution node --skipLibCheck
+
+  20 | >>> RUN npm run build
+
+  21 |     
+
+  22 |     # Stage 3: Runner
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+
+

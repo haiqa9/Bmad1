@@ -1,0 +1,110 @@
+=== NGINX CONF ===
+user nginx;
+worker_processes auto;
+
+error_log /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access_log.log  main;
+
+    sendfile        on;
+    tcp_nopush     on;
+    tcp_nodelay    on;
+    keepalive_timeout  65;
+    types_hash_max_size 2048;
+
+    # Gzip Compression
+    gzip on;
+    gzip_disable "msie6";
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_buffers 16 8k;
+    gzip_http_version 1.1;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    # HTTP server - redirects all traffic to HTTPS (once SSL is set up)
+    # Also serves the Let's Encrypt / Certbot ACME challenge
+    server {
+        listen 80;
+        server_name _; # Replace with your domain name (e.g., itam.expertflow.com)
+
+        location /.well-known/acme-challenge/ {
+            root /usr/share/nginx/html;
+        }
+
+        location / {
+            # Redirect to HTTPS:
+            # return 301 https://$host$request_uri;
+            
+            # Temporary proxy to Next.js app during initial bootstrap (before SSL cert is generated)
+            proxy_pass http://app:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_cache_bypass $http_upgrade;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    # HTTPS server template (Uncomment and configure once SSL certificates are obtained)
+    #
+    # server {
+    #     listen 443 ssl http2;
+    #     server_name itam.expertflow.com; # Replace with your domain
+    #
+    #     ssl_certificate /etc/nginx/certs/live/itam.expertflow.com/fullchain.pem;
+    #     ssl_certificate_key /etc/nginx/certs/live/itam.expertflow.com/privkey.pem;
+    #
+    #     # Strong SSL security settings
+    #     ssl_protocols TLSv1.2 TLSv1.3;
+    #     ssl_prefer_server_ciphers on;
+    #     ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
+    #     ssl_session_cache shared:SSL:10m;
+    #     ssl_session_timeout 1d;
+    #     ssl_session_tickets off;
+    #
+    #     # Next.js Reverse Proxy
+    #     location / {
+    #         proxy_pass http://app:3000;
+    #         proxy_http_version 1.1;
+    #         proxy_set_header Upgrade $http_upgrade;
+    #         proxy_set_header Connection 'upgrade';
+    #         proxy_set_header Host $host;
+    #         proxy_cache_bypass $http_upgrade;
+    #         proxy_set_header X-Real-IP $remote_addr;
+    #         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #         proxy_set_header X-Forwarded-Proto $scheme;
+    #     }
+    # }
+}
+
+
+=== FILES WITH GOOGLE CLIENT ID ===
+/opt/itam/docker-compose.yml
+/opt/itam/.env
+/opt/itam/lib/auth.ts
+/opt/itam/.env.backup
+
+
+=== APP LOGS ===
+▲ Next.js 16.2.6
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 0ms
+

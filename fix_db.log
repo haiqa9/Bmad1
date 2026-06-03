@@ -1,0 +1,52 @@
+=== PRISMA MIGRATE DEPLOY ===
+npm warn exec The following package was not found and will be installed: prisma@7.8.0
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@prisma/streams-local@0.1.2',
+npm warn EBADENGINE   required: { bun: '>=1.3.6', node: '>=22.0.0' },
+npm warn EBADENGINE   current: { node: 'v20.20.2', npm: '10.8.2' }
+npm warn EBADENGINE }
+Failed to load config file "/app/prisma.config.js" as a TypeScript/JavaScript module. Error: Error: Cannot find module 'prisma/config'
+Require stack:
+- /app/prisma.config.js
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.14.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.14.1
+npm notice To update run: npm install -g npm@11.14.1
+npm notice
+
+
+=== SEED SCRIPT ===
+npm warn exec The following package was not found and will be installed: tsx@4.22.3
+node:internal/modules/cjs/loader:1207
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '@prisma/adapter-pg'
+Require stack:
+- /app/prisma/seed.ts
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+    at nextResolveSimple (/home/nextjs/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BOkp8V6j.cjs:10:1017)
+    at /home/nextjs/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BOkp8V6j.cjs:9:4388
+    at /home/nextjs/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BOkp8V6j.cjs:9:3818
+    at resolveTsPaths (/home/nextjs/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BOkp8V6j.cjs:10:770)
+    at /home/nextjs/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-BOkp8V6j.cjs:10:1155
+    at T._resolveFilename (file:///home/nextjs/.npm/_npx/fd45a72a545557e9/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:14812)
+    at Module._load (node:internal/modules/cjs/loader:1038:27)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at require (node:internal/modules/helpers:182:18) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/app/prisma/seed.ts' ]
+}
+
+Node.js v20.20.2
+
+
+=== USERS IN DATABASE ===
+ERROR:  relation "User" does not exist
+LINE 1: SELECT email, name, role FROM "User";
+                                      ^
+
+
+=== DATABASE TABLES ===
+Did not find any relations.
+

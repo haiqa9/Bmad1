@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/api-auth";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const { searchParams } = new URL(req.url);
     const minAgeYears = parseInt(searchParams.get("minAge") || "3");

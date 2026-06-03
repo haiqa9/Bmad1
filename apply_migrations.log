@@ -1,0 +1,54 @@
+=== SQL EXECUTION ===
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TYPE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE TABLE
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+CREATE TABLE
+INSERT 0 4
+INSERT 0 3
+
+
+=== USERS ===
+          email          |        name        |       role       
+-------------------------+--------------------+------------------
+ employee@expertflow.com | Alice Employee     | EMPLOYEE
+ depthead@expertflow.com | Bob Dept Head      | DEPT_HEAD
+ itops@expertflow.com    | Charlie IT Ops     | IT_OPS
+ assetmgr@expertflow.com | Dana Asset Manager | IT_ASSET_MANAGER
+(4 rows)
+
+
+
+=== TABLES ===
+              List of relations
+ Schema |        Name        | Type  | Owner 
+--------+--------------------+-------+-------
+ public | ApprovalLog        | table | itam
+ public | Asset              | table | itam
+ public | AssetHistory       | table | itam
+ public | AssetRequest       | table | itam
+ public | SoftwareDetail     | table | itam
+ public | User               | table | itam
+ public | _prisma_migrations | table | itam
+(7 rows)
+
+

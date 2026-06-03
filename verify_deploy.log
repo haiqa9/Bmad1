@@ -1,0 +1,66 @@
+=== DOCKER PS ===
+NAMES                STATUS                    PORTS
+itam-nginx           Up 27 minutes             0.0.0.0:443->443/tcp, [::]:443->443/tcp, 0.0.0.0:8081->80/tcp, [::]:8081->80/tcp
+itam-app-prod        Up 31 minutes             0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+itam-postgres-prod   Up 31 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+
+
+=== BUILD LOG TAIL ===
+#16 1.866 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+#16 1.979   Creating an optimized production build ...
+#16 21.26 ✓ Compiled successfully in 18.6s
+#16 21.26   Running TypeScript ...
+#16 39.50 Failed to type check.
+#16 39.50 
+#16 39.51 ./app/dashboard/admin/users/page.tsx:220:26
+#16 39.51 Type error: Type '{ children: Element; asChild: true; }' is not assignable to type 'IntrinsicAttributes & Props<unknown>'.
+#16 39.51   Property 'asChild' does not exist on type 'IntrinsicAttributes & Props<unknown>'.
+#16 39.51 
+#16 39.51   [90m218 |[0m         </div>
+#16 39.51   [90m219 |[0m         <[33mDialog[0m open={createOpen} onOpenChange={setCreateOpen}>
+#16 39.51 [31m[1m>[0m [90m220 |[0m           <[33mDialogTrigger[0m asChild>
+#16 39.51   [90m    |[0m                          [31m[1m^[0m
+#16 39.51   [90m221 |[0m             <[33mButton[0m className=[32m"bg-[#1A50A3] text-white hover:bg-[#153d80]"[0m>
+#16 39.51   [90m222 |[0m               <[33mPlus[0m className=[32m"h-4 w-4 mr-1"[0m />
+#16 39.51   [90m223 |[0m               [33mAdd[0m [33mUser[0m
+#16 39.70 Next.js build worker exited with code: 1 and signal: null
+#16 ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+------
+ > [builder 7/7] RUN npm run build:
+39.51   Property 'asChild' does not exist on type 'IntrinsicAttributes & Props<unknown>'.
+39.51 
+39.51   [90m218 |[0m         </div>
+39.51   [90m219 |[0m         <[33mDialog[0m open={createOpen} onOpenChange={setCreateOpen}>
+39.51 [31m[1m>[0m [90m220 |[0m           <[33mDialogTrigger[0m asChild>
+39.51   [90m    |[0m                          [31m[1m^[0m
+39.51   [90m221 |[0m             <[33mButton[0m className=[32m"bg-[#1A50A3] text-white hover:bg-[#153d80]"[0m>
+39.51   [90m222 |[0m               <[33mPlus[0m className=[32m"h-4 w-4 mr-1"[0m />
+39.51   [90m223 |[0m               [33mAdd[0m [33mUser[0m
+39.70 Next.js build worker exited with code: 1 and signal: null
+------
+Dockerfile:20
+
+--------------------
+
+  18 |     RUN npx prisma generate
+
+  19 |     RUN npx tsc prisma/seed.ts --module commonjs --target es2020 --esModuleInterop --moduleResolution node --skipLibCheck
+
+  20 | >>> RUN npm run build
+
+  21 |     
+
+  22 |     # Stage 3: Runner
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+
+
+
+=== FILES CHECK ===
+-rw-r--r-- 1 root root  2783 May 20 09:45 /opt/itam/app/api/users/[id]/route.ts
+-rw-r--r-- 1 root root  2889 May 20 09:45 /opt/itam/app/api/users/route.ts
+-rw-r--r-- 1 root root 14658 May 20 09:48 /opt/itam/app/dashboard/admin/users/page.tsx
+-rw-r--r-- 1 root root   828 May 20 09:45 /opt/itam/lib/validations/user.ts
+

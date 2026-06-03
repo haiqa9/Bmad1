@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, ShieldCheck } from "lucide-react";
@@ -29,7 +29,7 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -63,6 +63,11 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     setError("");
     await signIn("google", { callbackUrl });
+  }
+
+  async function handleMicrosoftSignIn() {
+    setError("");
+    await signIn("azure-ad", { callbackUrl });
   }
 
   return (
@@ -101,13 +106,28 @@ export default function LoginPage() {
               </div>
             )}
 
-            <button
-              onClick={handleGoogleSignIn}
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-[#E8E8E8] bg-white px-4 py-3 text-sm font-medium text-[#212427] shadow-sm transition-all hover:bg-[#F5F6F9] hover:shadow-md"
-            >
-              <GoogleIcon className="h-5 w-5" />
-              Sign in with Google
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={handleGoogleSignIn}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-[#E8E8E8] bg-white px-4 py-3 text-sm font-medium text-[#212427] shadow-sm transition-all hover:bg-[#F5F6F9] hover:shadow-md"
+              >
+                <GoogleIcon className="h-5 w-5" />
+                Sign in with Google
+              </button>
+
+              <button
+                onClick={handleMicrosoftSignIn}
+                className="flex w-full items-center justify-center gap-3 rounded-xl border border-[#E8E8E8] bg-white px-4 py-3 text-sm font-medium text-[#212427] shadow-sm transition-all hover:bg-[#F5F6F9] hover:shadow-md"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+                </svg>
+                Sign in with Microsoft
+              </button>
+            </div>
 
             <div className="my-6 flex items-center gap-3">
               <div className="h-px flex-1 bg-[#E8E8E8]" />
@@ -152,20 +172,22 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-6 rounded-xl bg-[#F5F6F9] p-4">
-              <p className="mb-2 text-xs font-semibold text-[#212427]">
-                Demo Accounts
-              </p>
-              <div className="space-y-1 text-xs text-gray-500">
-                <p><span className="font-medium text-[#1A50A3]">employee@expertflow.com</span> (password123)</p>
-                <p><span className="font-medium text-[#1A50A3]">depthead@expertflow.com</span> (password123)</p>
-                <p><span className="font-medium text-[#1A50A3]">itops@expertflow.com</span> (password123)</p>
-                <p><span className="font-medium text-[#1A50A3]">assetmgr@expertflow.com</span> (password123)</p>
-              </div>
-            </div>
+
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-full items-center justify-center bg-[#F5F6F9]">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

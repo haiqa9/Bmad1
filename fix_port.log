@@ -1,0 +1,25 @@
+=== SED RESULT ===
+OK
+
+=== VERIFY PORT MAPPING ===
+46:      - "8080:80"
+
+
+=== DOCKER COMPOSE UP NGINX ===
+
+STDERR: time="2026-05-20T09:22:40Z" level=warning msg="/opt/itam/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container itam-postgres-prod Running 
+ Container itam-app-prod Running 
+ Container itam-nginx Recreate 
+ Container itam-nginx Recreated 
+ Container itam-postgres-prod Waiting 
+ Container itam-postgres-prod Healthy 
+ Container itam-nginx Starting 
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint itam-nginx (e64ae50471f91f30b6f03e1359b2f2087dd5bd94be0b6f5fed79990ae3e8d5aa): failed to bind host port 0.0.0.0:8080/tcp: address already in use
+
+
+=== DOCKER PS ===
+NAMES                STATUS                   PORTS
+itam-app-prod        Up 2 minutes             0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+itam-postgres-prod   Up 3 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+

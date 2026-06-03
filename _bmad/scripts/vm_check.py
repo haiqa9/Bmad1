@@ -1,0 +1,11 @@
+import paramiko
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+ssh.connect('192.168.1.38', username='root', password='ExpertFlow123', timeout=10)
+stdin, stdout, stderr = ssh.exec_command('docker ps --format "{{.Names}}"')
+print('Running containers:')
+print(stdout.read().decode())
+stdin, stdout, stderr = ssh.exec_command('docker images --format "{{.Repository}}:{{.Tag}}" | grep -i itam || true')
+print('Images:')
+print(stdout.read().decode())
+ssh.close()

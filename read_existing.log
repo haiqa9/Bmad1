@@ -1,0 +1,364 @@
+=== DASHBOARD LAYOUT ===
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/session";
+import { LogoutButton } from "@/components/logout-button";
+import {
+  LayoutDashboard,
+  Package,
+  FileText,
+  BarChart3,
+  CheckCircle,
+  Wrench,
+} from "lucide-react";
+
+const menuConfig: Record<
+  string,
+  { label: string; href: string; icon: React.ElementType }[]
+> = {
+  EMPLOYEE: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Request Asset", href: "/dashboard/requests/new", icon: FileText },
+    { label: "My Requests", href: "/dashboard/requests", icon: FileText },
+  ],
+  DEPT_HEAD: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Pending Approvals", href: "/dashboard/approvals/manager", icon: CheckCircle },
+    { label: "My Requests", href: "/dashboard/requests", icon: FileText },
+  ],
+  IT_OPS: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Assets", href: "/dashboard/assets", icon: Package },
+    { label: "IT Approvals", href: "/dashboard/approvals/it", icon: CheckCircle },
+    { label: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
+  ],
+  IT_ASSET_MANAGER: [
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Assets", href: "/dashboard/assets", icon: Package },
+    { label: "Requests", href: "/dashboard/requests", icon: FileText },
+    { label: "Approvals", href: "/dashboard/approvals", icon: CheckCircle },
+    { label: "Compliance", href: "/dashboard/compliance", icon: BarChart3 },
+    { label: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
+  ],
+};
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const menuItems = menuConfig[user.role] || menuConfig.EMPLOYEE;
+
+  return (
+    <div className="flex min-h-full">
+      {/* Sidebar */}
+      <aside className="flex w-64 flex-col border-r border-[#E8E8E8] bg-white">
+        {/* Logo */}
+        <div className="flex items-center gap-2.5 px-6 py-5 border-b border-[#E8E8E8]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1A50A3]">
+            <span className="text-sm font-bold text-white">EF</span>
+          </div>
+          <div>
+            <span className="text-base font-bold text-[#212427] leading-tight block">
+              Expertflow
+            </span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#1A50A3]">
+              ITAM Portal
+            </span>
+          </div>
+        </div>
+
+        {/* User Card */}
+        <div className="px-4 py-4">
+          <div className="rounded-xl bg-[#F5F6F9] px-4 py-3">
+            <p className="text-xs text-gray-500 mb-0.5">Signed in as</p>
+            <p className="text-sm font-semibold text-[#212427] truncate">
+              {user.name}
+            </p>
+            <span className="inline-flex mt-1.5 items-center rounded-full bg-[#1A50A3]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#1A50A3]">
+              {user.role.replace("_", " ")}
+            </span>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-0.5 px-3 py-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-gray-600 transition-all hover:bg-[#1A50A3]/5 hover:text-[#1A50A3]"
+              >
+                <Icon className="h-[18px] w-[18px] text-gray-400 transition-colors group-hover:text-[#1A50A3]" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer */}
+        <div className="border-t border-[#E8E8E8] p-3">
+          <LogoutButton />
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 bg-[#F5F6F9]">
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+
+=== ADMIN PAGE ===
+import { getCurrentUser } from "@/lib/session";
+import { redirect } from "next/navigation";
+import { Package, FileText, CheckCircle, BarChart3, Wrench, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
+
+export default async function AdminDashboard() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "IT_ASSET_MANAGER") redirect("/dashboard");
+
+  const cards = [
+    {
+      label: "Asset Inventory",
+      desc: "Full CMDB view and management",
+      href: "/dashboard/assets",
+      icon: Package,
+      color: "bg-[#1A50A3]",
+      lightColor: "bg-[#1A50A3]/10",
+      textColor: "text-[#1A50A3]",
+    },
+    {
+      label: "All Requests",
+      desc: "Oversee the request pipeline",
+      href: "/dashboard/requests",
+      icon: FileText,
+      color: "bg-[#00BD82]",
+      lightColor: "bg-[#00BD82]/10",
+      textColor: "text-[#00BD82]",
+    },
+    {
+      label: "Approvals",
+      desc: "Managerial and IT approvals",
+      href: "/dashboard/approvals",
+      icon: CheckCircle,
+      color: "bg-[#F47C22]",
+      lightColor: "bg-[#F47C22]/10",
+      textColor: "text-[#F47C22]",
+    },
+    {
+      label: "Compliance",
+      desc: "License compliance & aging reports",
+      href: "/dashboard/compliance",
+      icon: BarChart3,
+      color: "bg-[#2491E5]",
+      lightColor: "bg-[#2491E5]/10",
+      textColor: "text-[#2491E5]",
+    },
+    {
+      label: "Maintenance",
+      desc: "Assets in maintenance mode",
+      href: "/dashboard/maintenance",
+      icon: Wrench,
+      color: "bg-[#8B5CF6]",
+      lightColor: "bg-[#8B5CF6]/10",
+      textColor: "text-[#8B5CF6]",
+    },
+  ];
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-[#212427]">
+          Welcome back, {user.name}
+        </h1>
+        <p className="text-gray-500">IT Asset Manager Dashboard</p>
+      </div>
+
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {cards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
+            >
+              <div className="flex items-start justify-between">
+                <div
+                  className={`flex h-12 w-12 items-center justify-center rounded-xl ${card.lightColor}`}
+                >
+                  <Icon className={`h-6 w-6 ${card.textColor}`} />
+                </div>
+                <ArrowUpRight className="h-5 w-5 text-gray-300 transition-all group-hover:text-gray-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </div>
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold text-[#212427]">
+                  {card.label}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">{card.desc}</p>
+              </div>
+              <div
+                className={`absolute bottom-0 left-0 h-1 w-full ${card.color} opacity-0 transition-opacity group-hover:opacity-100`}
+              />
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+=== ASSETS API ===
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { createAssetSchema, assetQuerySchema } from "@/lib/validations/asset";
+
+// GET /api/assets - List assets with pagination, filters, and search
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const query = assetQuerySchema.parse(Object.fromEntries(searchParams));
+
+    const where: any = {};
+
+    if (query.type) where.type = query.type;
+    if (query.status) where.status = query.status;
+    if (query.department) where.department = query.department;
+    if (query.costCenter) where.costCenter = query.costCenter;
+
+    if (query.q) {
+      where.OR = [
+        { tag: { contains: query.q, mode: "insensitive" } },
+        { title: { contains: query.q, mode: "insensitive" } },
+        { assignedTo: { contains: query.q, mode: "insensitive" } },
+      ];
+    }
+
+    const skip = (query.page - 1) * query.limit;
+
+    const [assets, total] = await Promise.all([
+      prisma.asset.findMany({
+        where,
+        skip,
+        take: query.limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          softwareDetail: true,
+        },
+      }),
+      prisma.asset.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      data: assets,
+      meta: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        totalPages: Math.ceil(total / query.limit),
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json({ error: "Invalid query parameters" }, { status: 400 });
+    }
+    console.error("GET /api/assets error:", error);
+    return NextResponse.json({ error: "Failed to fetch assets" }, { status: 500 });
+  }
+}
+
+// POST /api/assets - Create a new asset
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const parsed = createAssetSchema.parse(body);
+
+    const existing = await prisma.asset.findUnique({
+      where: { tag: parsed.tag },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "An asset with this tag already exists" },
+        { status: 409 }
+      );
+    }
+
+    const { softwareDetail, ...assetData } = parsed;
+
+    const asset = await prisma.asset.create({
+      data: {
+        ...assetData,
+        assignedTo: assetData.assignedTo || null,
+        purchaseDate: assetData.purchaseDate ? new Date(assetData.purchaseDate) : null,
+        warrantyExpiry: assetData.warrantyExpiry ? new Date(assetData.warrantyExpiry) : null,
+        softwareDetail:
+          parsed.type === "SOFTWARE" || parsed.type === "CLOUD"
+            ? softwareDetail
+              ? {
+                  create: {
+                    ...softwareDetail,
+                    renewalDate: softwareDetail.renewalDate ? new Date(softwareDetail.renewalDate) : null,
+                  },
+                }
+              : undefined
+            : undefined,
+        history: {
+          create: {
+            toStatus: assetData.status || "REGISTERED",
+            changedBy: "system",
+            notes: "Asset created",
+          },
+        },
+      },
+      include: {
+        softwareDetail: true,
+        history: true,
+      },
+    });
+
+    return NextResponse.json(asset, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      return NextResponse.json(
+        { error: "Validation failed", details: (error as any).errors },
+        { status: 400 }
+      );
+    }
+    console.error("POST /api/assets error:", error);
+    return NextResponse.json({ error: "Failed to create asset" }, { status: 500 });
+  }
+}
+
+
+=== PRISMA LIB ===
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
+
+const connectionString = process.env.DATABASE_URL;
+
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+

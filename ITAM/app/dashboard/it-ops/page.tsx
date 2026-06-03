@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { redirect } from "next/navigation";
-import { Package, CheckCircle, Wrench, ArrowUpRight } from "lucide-react";
+import { CheckCircle, Wrench, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
 export default async function ItOpsDashboard() {
@@ -16,24 +16,7 @@ export default async function ItOpsDashboard() {
         <p className="text-gray-500">IT Operations Dashboard</p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-3">
-        <Link
-          href="/dashboard/assets"
-          className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"
-        >
-          <div className="flex items-start justify-between">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1A50A3]/10">
-              <Package className="h-6 w-6 text-[#1A50A3]" />
-            </div>
-            <ArrowUpRight className="h-5 w-5 text-gray-300 transition-all group-hover:text-gray-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </div>
-          <div className="mt-4">
-            <h3 className="text-lg font-semibold text-[#212427]">Assets</h3>
-            <p className="mt-1 text-sm text-gray-500">Manage the asset inventory</p>
-          </div>
-          <div className="absolute bottom-0 left-0 h-1 w-full bg-[#1A50A3] opacity-0 transition-opacity group-hover:opacity-100" />
-        </Link>
-
+      <div className="grid gap-5 md:grid-cols-2">
         <Link
           href="/dashboard/approvals/it"
           className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg"

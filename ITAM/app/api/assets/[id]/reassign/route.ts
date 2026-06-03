@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireManager } from "@/lib/api-auth";
 
 // POST /api/assets/:id/reassign - Reassign asset to different employee/department
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const token = await requireManager(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const { id } = await params;
     const body = await req.json();

@@ -95,16 +95,17 @@ model SoftwareDetail {
 }
 
 model AssetRequest {
-  id            String        @id @default(cuid())
-  assetId       String?       @unique
-  asset         Asset?        @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  requestedBy   String
-  department    String
-  justification String
-  status        RequestStatus @default(PENDING_MANAGER)
-  urgency       Urgency       @default(MEDIUM)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id              String        @id @default(cuid())
+  assetId         String?       @unique
+  asset           Asset?        @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  requestedBy     String
+  requestedByName String?
+  department      String
+  justification   String
+  status          RequestStatus @default(PENDING_MANAGER)
+  urgency         Urgency       @default(MEDIUM)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   approvals ApprovalLog[]
 }
@@ -131,4 +132,187 @@ model AssetHistory {
   changedAt DateTime    @default(now())
   notes     String?
   type      HistoryType @default(STATUS_CHANGE)
+}
+
+// --- Excel Sheet Models ---
+
+model LaptopRecord {
+  id          String   @id @default(cuid())
+  sr          String?
+  employeeName String?
+  department  String?
+  status      String?
+  date        String?
+  serialNumber String?
+  laptop      String?
+  model       String?
+  cpu         String?
+  ram         String?
+  hdd         String?
+  lcd         String?
+  keyboard    String?
+  mouse       String?
+  laptopBag   String?
+  headPhones  String?
+  mousepad    String?
+  comment     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ServerDevice {
+  id                String   @id @default(cuid())
+  model             String?
+  serialNumber      String?
+  cpus              String?
+  processor         String?
+  ram               String?
+  storage           String?
+  ip                String?
+  osVersion         String?
+  status            String?
+  noOfExistingVms   String?
+  iloIps            String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Device {
+  id           String   @id @default(cuid())
+  device       String?
+  model        String?
+  modelNumber  String?
+  serialNumber String?
+  ip           String?
+  battery      String?
+  status       String?
+  bw           String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model IloIdrac {
+  id          String   @id @default(cuid())
+  servers     String?
+  ip          String?
+  iloIdracIp  String?
+  switchPort  String?
+  comments    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CloudVm {
+  id                    String   @id @default(cuid())
+  no                    String?
+  cloudVmUsageDescription String?
+  ipAddress             String?
+  fqdn                  String?
+  cloud                 String?
+  specifications        String?
+  userDepartment        String?
+  sslStatus             String?
+  sslExpiry             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model LabVm {
+  id                      String   @id @default(cuid())
+  sr                      String?
+  vmName                  String?
+  hostServer              String?
+  memorySize              String?
+  ipAddress               String?
+  dnsName                 String?
+  sslStatus               String?
+  sslExpiry               String?
+  publicIpMiddlewareProxy String?
+  userTeam                String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model PublicFqdn {
+  id                    String   @id @default(cuid())
+  formEtlExpertflowCom  String?
+  publicIpMiddleware    String?
+  pointsTo              String?
+  usageUser             String?
+  mttHostDo             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model GatePass {
+  id          String   @id @default(cuid())
+  gpId        String?
+  particulars String?
+  serialNumber String?
+  quantity    String?
+  issuedBy    String?
+  recievedTo  String?
+  timeOut     String?
+  timeIn      String?
+  remarks     String?
+  charger     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ReceivedItem {
+  id            String   @id @default(cuid())
+  receivedFrom  String?
+  particulars   String?
+  quantity      String?
+  receivedBy    String?
+  receivedDate  String?
+  remarks       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PortDetail {
+  id                  String   @id @default(cuid())
+  srNo                String?
+  deviceName          String?
+  col3                String?
+  switch1Cisco2960    String?
+  switch2Cisco3750    String?
+  col6                String?
+  srNo2               String?
+  deviceName2         String?
+  col9                String?
+  switch1Cisco2960_2  String?
+  switch2Cisco3750_2  String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model FreeVm {
+  id          String   @id @default(cuid())
+  vmName      String?
+  serverIp    String?
+  ram         String?
+  vmIp        String?
+  domainName  String?
+  fqdn        String?
+  deletedOn   String?
+  department  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Sheet38 {
+  id                  String   @id @default(cuid())
+  hostName            String?
+  ipAddress           String?
+  customer            String?
+  backupTypoe         String?
+  backupPolicy        String?
+  backupStore         String?
+  itPolicy            String?
+  responsiblePerson   String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }

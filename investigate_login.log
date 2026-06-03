@@ -1,0 +1,26 @@
+=== APP LOGS (last 50 lines) ===
+▲ Next.js 16.2.6
+- Local:         http://localhost:3000
+- Network:       http://0.0.0.0:3000
+✓ Ready in 0ms
+
+
+=== USERS IN DATABASE ===
+cannot attach stdin to a TTY-enabled container because stdin is not a terminal
+
+
+=== DATABASE TABLES ===
+cannot attach stdin to a TTY-enabled container because stdin is not a terminal
+
+
+=== ENV CHECK ===
+NEXTAUTH_URL="http://192.168.1.38:3000"
+NEXTAUTH_SECRET=***
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=***
+
+
+=== SEED INFO ===
+/opt/itam/prisma/seed.ts
+    "seed": "tsx prisma/seed.ts"
+

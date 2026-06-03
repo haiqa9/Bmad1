@@ -1,0 +1,11 @@
+import paramiko
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+ssh.connect('192.168.1.38', username='root', password='ExpertFlow123', timeout=5)
+stdin, stdout, stderr = ssh.exec_command('docker ps --format "{{.Names}} {{.Status}}"')
+print('Containers:')
+print(stdout.read().decode())
+stdin, stdout, stderr = ssh.exec_command('docker logs --tail 20 strange_einstein 2>/dev/null || echo "no logs"')
+print('Migrate logs:')
+print(stdout.read().decode()[:2000])
+ssh.close()

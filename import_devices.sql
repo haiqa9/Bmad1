@@ -1,0 +1,37 @@
+CREATE TABLE IF NOT EXISTS "Device" (
+  "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid(),
+  "device" TEXT,
+  "model" TEXT,
+  "modelNumber" TEXT,
+  "serialNumber" TEXT,
+  "ip" TEXT,
+  "battery" TEXT,
+  "status" TEXT,
+  "bw" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+DELETE FROM "Device";
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('9060b81c-602f-45f8-8f10-b96dd40c83aa', 'Network Router / Switches', 'Cisco 2811', NULL, NULL, '192.168.1.4', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('1cbf26e2-1c77-4d9d-9bbb-da5413a1d087', 'Network Router / Switches', 'Cisco 3945 E', NULL, NULL, '192.168.1.11', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('8259fb50-4899-4b70-9d07-7e483106ed18', 'Network Router / Switches', 'Cisco 2911', NULL, NULL, '192.168.1.12', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('f4683334-3f8a-4532-8b1e-e685a4a3adcf', 'Network Router / Switches', 'Cisco 4948 - 48 port', NULL, NULL, NULL, NULL, NULL, '100 / 1000', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('dbb109c7-a006-44d1-bcf1-cdf6b126ba4f', 'Network Router / Switches', 'Cisco 2960 - 48 port', NULL, NULL, '192.168.1.8', NULL, NULL, '10 / 100', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('12ae7b79-42dc-4757-b90a-e86a8b21fbb6', 'Network Router / Switches', 'Cisco 2960 - 48 port', NULL, NULL, '192.168.1.9', NULL, NULL, '10 / 100', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('edec9ee4-c359-404c-a974-9b6f81838ff3', 'Network Router / Switches', 'Cisco 2950 - 24 port', NULL, NULL, NULL, NULL, NULL, '10 / 100', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('dad68c19-f685-42f2-bd1c-14c4f61ccd48', 'Network Router / Switches', 'Cisco 2960 - 48 port', NULL, NULL, NULL, NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('4d767d7a-6428-410a-8271-57c79f908256', 'Network Router / Switches', 'Cisco Router-2900', NULL, NULL, '192.168.1.4', NULL, 'online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('4623e977-75cc-4544-883f-19bc2176ed7f', 'CCTV System', 'HIK VISON NVR', NULL, 'AK3217632', '192.168.1.3', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('048275f9-b6f9-4de1-ba3d-9c159faa353c', 'CCTV System', 'HIK VISON', NULL, NULL, '192.168.1.248', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('5594f110-aec6-4bde-b817-88a0e9ef9a8b', 'CCTV System', 'HIK VISON', NULL, NULL, '192.168.1.247', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('7df5a426-d74d-42f5-bbf7-51e0abed8ac6', 'Attendance Devices', 'Enviz attendance -1', NULL, NULL, '192.168.1.13', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('0f2857a5-16e2-4dc5-a8bf-c6368018497a', 'Attendance Devices', 'Enviz attendance - 2', NULL, NULL, '192.168.1.14', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('202e2f4e-7cbe-4cd0-b2cd-3b32ceffd70e', 'UPS', 'APC -online UPS', NULL, NULL, NULL, '12 x 38 Amp batteries', 'Offline', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('d2c00f42-41ff-4e9e-9747-cbcdca192546', 'UPS', 'UPS 1 new UPS added (3kv) dated 24 March 2022)', NULL, NULL, NULL, '4x batters', 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('a0286684-b821-46a2-98f6-8fb5cff34eaf', 'UPS', 'UPS 2 new UPS added (3kv)', 'SUA3000RMXLI3U', 'AS1343132936', NULL, '4x batters', 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('6ee77767-cf78-4288-9512-2b272a6360f2', 'UPS', 'lower UPS''s Upper Batteries changed UPS (dated 21-01-2022)', NULL, NULL, NULL, NULL, NULL, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('26b5262a-c058-4081-841c-3f6b43f1ee17', 'UPS', 'UPS 3', 'SUA3000RMI2U', 'YS0352120761', NULL, '4 x 200 Amp batteries', 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('a3dd05d1-9000-4c74-a62f-6186b208b4d2', 'Printer', 'HP LaserJet P2055dn', NULL, NULL, '192.168.1.223', NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('5789abe0-fdf8-4608-924a-79921bebe34a', 'Printer', 'HP LaserJet MFP 135a', NULL, 'CNB2QDLLNB', NULL, NULL, 'Online', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Device" ("id", "device", "model", "modelNumber", "serialNumber", "ip", "battery", "status", "bw", "createdAt", "updatedAt") VALUES ('79495aff-c0e9-43ac-a10a-390f4476d921', 'Printer', 'HP LaserJet MFP 135a', NULL, 'CNB3R329GJ', NULL, NULL, 'Offline', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);

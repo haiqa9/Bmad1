@@ -1,0 +1,6 @@
+Port 8081: FREE
+Port 8082: LISTEN 0      2048       127.0.0.1:8082      0.0.0.0:*
+Port 8083: FREE
+Port 3001: FREE
+Port 9000: FREE
+Port 9001: FREE

@@ -1,0 +1,16 @@
+=== .env.backup ===
+DATABASE_URL="postgresql://itam:itam_secure_pass@db:5432/itam?schema=public"
+NEXTAUTH_URL="http://192.168.1.38:3000"
+NEXTAUTH_SECRET="f3fdf89a19c3c82d46817c148ae8e4a7aef75a409cdb72bda7f1e1e0de00bc1a"
+NODE_ENV="production"
+DB_USER="itam"
+DB_PASSWORD="itam_secure_pass"
+DB_NAME="itam"
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+
+=== ALL ENV FILES ===
+/opt/itam/.env
+/opt/itam/.env.backup
+

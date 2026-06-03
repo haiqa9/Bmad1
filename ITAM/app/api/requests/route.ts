@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireAuth } from "@/lib/api-auth";
 
 const createRequestSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -11,12 +12,15 @@ const createRequestSchema = z.object({
 
 // GET /api/requests - List requests (with optional user filter)
 export async function GET(req: NextRequest) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const { searchParams } = new URL(req.url);
     const userEmail = searchParams.get("user");
     const status = searchParams.get("status");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "20", 10)));
 
     const where: any = {};
     if (userEmail) where.requestedBy = userEmail;
@@ -40,8 +44,26 @@ export async function GET(req: NextRequest) {
       prisma.assetRequest.count({ where }),
     ]);
 
+    // Enrich with user names for requests without requestedByName
+    const userEmails = requests
+      .filter((r) => !r.requestedByName)
+      .map((r) => r.requestedBy);
+    const uniqueEmails = [...new Set(userEmails)];
+    const users = uniqueEmails.length
+      ? await prisma.user.findMany({
+          where: { email: { in: uniqueEmails } },
+          select: { email: true, name: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.email, u.name]));
+
+    const enriched = requests.map((r) => ({
+      ...r,
+      requestedByName: r.requestedByName || userMap.get(r.requestedBy) || r.requestedBy,
+    }));
+
     return NextResponse.json({
-      data: requests,
+      data: enriched,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error) {
@@ -52,12 +74,15 @@ export async function GET(req: NextRequest) {
 
 // POST /api/requests - Create a new asset request
 export async function POST(req: NextRequest) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const body = await req.json();
     const parsed = createRequestSchema.parse(body);
 
-    // Get user info from session (simplified - in real app extract from JWT)
     const requestedBy = body.requestedBy || "unknown@expertflow.com";
+    const requestedByName = body.requestedByName || null;
     const department = body.department || "Unknown";
 
     // Create placeholder asset
@@ -67,7 +92,7 @@ export async function POST(req: NextRequest) {
         title: parsed.title,
         type: parsed.type,
         status: "REQUESTED",
-        costCenter: body.costCenter || department,
+        costCenter: department,
         department,
       },
     });
@@ -77,6 +102,7 @@ export async function POST(req: NextRequest) {
       data: {
         assetId: asset.id,
         requestedBy,
+        requestedByName,
         department,
         justification: parsed.justification,
         status: "PENDING_MANAGER",
@@ -84,7 +110,9 @@ export async function POST(req: NextRequest) {
       },
       include: {
         asset: true,
-        approvals: true,
+        approvals: {
+          include: { approver: { select: { name: true, role: true } } },
+        },
       },
     });
 

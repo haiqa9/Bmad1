@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,20 +13,92 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, X } from "lucide-react";
 import Link from "next/link";
+
+interface Employee {
+  id: string;
+  email: string;
+  name: string;
+  department: string;
+  role: string;
+}
 
 interface RequestFormProps {
   userEmail: string;
   userDepartment: string;
+  userRole: string;
 }
 
-export function RequestForm({ userEmail, userDepartment }: RequestFormProps) {
+export function RequestForm({ userEmail, userDepartment, userRole }: RequestFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [type, setType] = useState<string | null>("HARDWARE");
   const [urgency, setUrgency] = useState<string | null>("MEDIUM");
+
+  const isManager = userRole === "IT_ASSET_MANAGER";
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  // Searchable "on behalf of" state
+  const [search, setSearch] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [customEmail, setCustomEmail] = useState("");
+  const [customDepartment, setCustomDepartment] = useState("");
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Fetch employees for IT_ASSET_MANAGER
+  useEffect(() => {
+    if (!isManager) return;
+    fetch("/api/users")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.users) {
+          setEmployees(json.users);
+        }
+      })
+      .catch(() => {
+        // silently fail
+      });
+  }, [isManager]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredEmployees = employees.filter(
+    (emp) =>
+      emp.name.toLowerCase().includes(search.toLowerCase()) ||
+      emp.email.toLowerCase().includes(search.toLowerCase()) ||
+      emp.department.toLowerCase().includes(search.toLowerCase())
+  );
+
+  function selectEmployee(emp: Employee) {
+    setSelectedEmployee(emp);
+    setCustomEmail(emp.email);
+    setCustomDepartment(emp.department);
+    setSearch(`${emp.name} (${emp.email})`);
+    setShowDropdown(false);
+  }
+
+  function clearSelection() {
+    setSelectedEmployee(null);
+    setCustomEmail("");
+    setCustomDepartment("");
+    setSearch("");
+    setShowDropdown(false);
+  }
+
+  const effectiveEmail = selectedEmployee?.email || customEmail || userEmail;
+  const effectiveDepartment = selectedEmployee?.department || customDepartment || userDepartment;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -39,9 +111,9 @@ export function RequestForm({ userEmail, userDepartment }: RequestFormProps) {
       type: type || "HARDWARE",
       justification: formData.get("justification") as string,
       urgency: urgency || "MEDIUM",
-      requestedBy: userEmail,
-      department: userDepartment,
-      costCenter: formData.get("costCenter") as string,
+      requestedBy: effectiveEmail,
+      requestedByName: selectedEmployee?.name || customEmail || null,
+      department: effectiveDepartment,
     };
 
     try {
@@ -134,15 +206,81 @@ export function RequestForm({ userEmail, userDepartment }: RequestFormProps) {
           </Select>
         </div>
 
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="costCenter">Preferred Cost Center</Label>
-          <Input
-            id="costCenter"
-            name="costCenter"
-            defaultValue={`${userDepartment.toUpperCase().replace(/\s/g, "-")}-001`}
-            placeholder="e.g. ENG-001"
-          />
-        </div>
+        {isManager && (
+          <>
+            <div className="space-y-2 md:col-span-2" ref={searchRef}>
+              <Label>Request On Behalf Of</Label>
+              <div className="relative">
+                <Input
+                  placeholder="Type name or email to search..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setCustomEmail(e.target.value);
+                    setShowDropdown(true);
+                    if (selectedEmployee) {
+                      setSelectedEmployee(null);
+                      setCustomDepartment("");
+                    }
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                />
+                {selectedEmployee && (
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+                {showDropdown && filteredEmployees.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
+                    {filteredEmployees.map((emp) => (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => selectEmployee(emp)}
+                        className="flex w-full flex-col items-start px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                      >
+                        <span className="font-medium">{emp.name}</span>
+                        <span className="text-xs text-zinc-500">
+                          {emp.email} — {emp.department}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedEmployee ? (
+                <p className="text-xs text-zinc-500">
+                  Request will be submitted for:{" "}
+                  <strong>{selectedEmployee.name}</strong> ({selectedEmployee.email}) —{" "}
+                  {selectedEmployee.department}
+                </p>
+              ) : customEmail ? (
+                <p className="text-xs text-zinc-500">
+                  Request will be submitted for:{" "}
+                  <strong>{customEmail}</strong> — department will default to{" "}
+                  {userDepartment}
+                </p>
+              ) : null}
+            </div>
+
+            {/* Show department override when typing a custom email not in system */}
+            {!selectedEmployee && customEmail && (
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="customDepartment">Department</Label>
+                <Input
+                  id="customDepartment"
+                  placeholder="Enter department"
+                  value={customDepartment}
+                  onChange={(e) => setCustomDepartment(e.target.value)}
+                />
+              </div>
+            )}
+          </>
+        )}
 
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="justification">Justification *</Label>

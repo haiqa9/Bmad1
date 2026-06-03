@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireAuth } from "@/lib/api-auth";
 
 const approvalSchema = z.object({
   requestId: z.string().min(1),
@@ -12,6 +13,9 @@ const approvalSchema = z.object({
 
 // GET /api/approvals - List pending approvals by stage and department
 export async function GET(req: NextRequest) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const { searchParams } = new URL(req.url);
     const stage = searchParams.get("stage"); // MANAGER or IT
@@ -43,7 +47,25 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data: requests });
+    // Enrich with user names for requests without requestedByName
+    const userEmails = requests
+      .filter((r) => !r.requestedByName)
+      .map((r) => r.requestedBy);
+    const uniqueEmails = [...new Set(userEmails)];
+    const users = uniqueEmails.length
+      ? await prisma.user.findMany({
+          where: { email: { in: uniqueEmails } },
+          select: { email: true, name: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.email, u.name]));
+
+    const enriched = requests.map((r) => ({
+      ...r,
+      requestedByName: r.requestedByName || userMap.get(r.requestedBy) || r.requestedBy,
+    }));
+
+    return NextResponse.json({ data: enriched });
   } catch (error) {
     console.error("GET /api/approvals error:", error);
     return NextResponse.json({ error: "Failed to fetch approvals" }, { status: 500 });
@@ -52,6 +74,9 @@ export async function GET(req: NextRequest) {
 
 // POST /api/approvals - Submit an approval decision
 export async function POST(req: NextRequest) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const body = await req.json();
     const parsed = approvalSchema.parse(body);

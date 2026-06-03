@@ -1,0 +1,11 @@
+import paramiko
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+ssh.connect('192.168.1.38', username='root', password='ExpertFlow123', timeout=5)
+stdin, stdout, stderr = ssh.exec_command('docker ps --format "{{.Names}} {{.Status}}"')
+print('Containers:')
+print(stdout.read().decode())
+stdin, stdout, stderr = ssh.exec_command('docker logs --tail 30 inspiring_joliot 2>/dev/null || echo "no logs"')
+print('Seed2 logs:')
+print(stdout.read().decode()[:3000])
+ssh.close()

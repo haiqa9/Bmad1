@@ -1,0 +1,124 @@
+=== DOCKER BUILD LOG TAIL ===
+#16 42.45   Generating static pages using 3 workers (21/28) 
+#16 42.72 ✓ Generating static pages using 3 workers (28/28) in 919ms
+#16 42.74   Finalizing page optimization ...
+#16 43.66 
+#16 43.67 Route (app)
+#16 43.67 ┌ ƒ /
+#16 43.67 ├ ○ /_not-found
+#16 43.67 ├ ƒ /api/approvals
+#16 43.67 ├ ƒ /api/assets
+#16 43.67 ├ ƒ /api/assets/[id]
+#16 43.67 ├ ƒ /api/assets/[id]/maintenance
+#16 43.67 ├ ƒ /api/assets/[id]/reassign
+#16 43.67 ├ ƒ /api/auth/[...nextauth]
+#16 43.67 ├ ƒ /api/compliance
+#16 43.67 ├ ƒ /api/compliance/aging
+#16 43.67 ├ ƒ /api/compliance/licenses
+#16 43.67 ├ ƒ /api/health
+#16 43.67 ├ ƒ /api/requests
+#16 43.67 ├ ƒ /dashboard
+#16 43.67 ├ ƒ /dashboard/admin
+#16 43.67 ├ ƒ /dashboard/approvals
+#16 43.67 ├ ƒ /dashboard/approvals/it
+#16 43.67 ├ ƒ /dashboard/approvals/manager
+#16 43.67 ├ ƒ /dashboard/assets
+#16 43.67 ├ ƒ /dashboard/assets/new
+#16 43.67 ├ ƒ /dashboard/compliance
+#16 43.67 ├ ƒ /dashboard/compliance/aging
+#16 43.67 ├ ƒ /dashboard/compliance/licenses
+#16 43.67 ├ ƒ /dashboard/dept-head
+#16 43.67 ├ ƒ /dashboard/employee
+#16 43.67 ├ ƒ /dashboard/it-ops
+#16 43.67 ├ ƒ /dashboard/maintenance
+#16 43.67 ├ ƒ /dashboard/requests
+#16 43.67 ├ ƒ /dashboard/requests/new
+#16 43.67 └ ○ /login
+#16 43.67 
+#16 43.67 
+#16 43.67 ƒ Proxy (Middleware)
+#16 43.67 
+#16 43.67 ○  (Static)   prerendered as static content
+#16 43.67 ƒ  (Dynamic)  server-rendered on demand
+#16 43.67 
+#16 DONE 44.0s
+
+#17 [runner  4/10] RUN adduser --system --uid 1001 nextjs
+#17 CACHED
+
+#18 [runner  3/10] RUN addgroup --system --gid 1001 nodejs
+#18 CACHED
+
+#19 [runner  5/10] COPY --from=builder /app/public ./public
+#19 CACHED
+
+#20 [runner  6/10] COPY --from=builder /app/package.json ./package.json
+#20 CACHED
+
+#21 [runner  7/10] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#21 DONE 1.0s
+
+#22 [runner  8/10] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#22 DONE 0.1s
+
+#23 [runner  9/10] COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+#23 DONE 0.0s
+
+#24 [runner 10/10] COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./prisma.config.js
+#24 DONE 0.0s
+
+#25 exporting to image
+#25 exporting layers
+#25 exporting layers 6.6s done
+#25 exporting manifest sha256:b35adea918157165d289b68753dd9eec832e87783678b0446c8deb7844ed7055
+#25 exporting manifest sha256:b35adea918157165d289b68753dd9eec832e87783678b0446c8deb7844ed7055 0.0s done
+#25 exporting config sha256:8a6e0499c57e05d22b2ade2eea1189a4e8555bf29dfb6cf94f0de463b5f894d6 0.0s done
+#25 exporting attestation manifest sha256:f39c8ae91e5b044695cbaf86f51e0daafd5460bd6a8929aa900c045de87511f4 0.0s done
+#25 exporting manifest list sha256:4db09c152cce7236a9166a338f8b3202b090157127c58a2287a177e7916f90a7 0.0s done
+#25 naming to docker.io/library/itam-app:latest done
+#25 unpacking to docker.io/library/itam-app:latest
+#25 unpacking to docker.io/library/itam-app:latest 3.5s done
+#25 DONE 10.3s
+
+#26 resolving provenance for metadata file
+#26 DONE 0.0s
+ Image itam-app Built 
+ Network itam_default Creating 
+ Network itam_default Created 
+ Container itam-postgres-prod Creating 
+ Container itam-postgres-prod Created 
+ Container itam-app-prod Creating 
+ Container itam-app-prod Created 
+ Container itam-nginx Creating 
+ Container itam-nginx Created 
+ Container itam-postgres-prod Starting 
+ Container itam-postgres-prod Started 
+ Container itam-postgres-prod Waiting 
+ Container itam-postgres-prod Healthy 
+ Container itam-app-prod Starting 
+ Container itam-app-prod Started 
+ Container itam-nginx Starting 
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint itam-nginx (728dabb4649b1da869936aaba47d3ec4de01b6ecea6827156e59bca1d75970e9): failed to bind host port 0.0.0.0:80/tcp: address already in use
+
+
+=== STATUS LINES ===
+#1 DONE 0.0s
+#2 DONE 0.0s
+#3 DONE 0.8s
+#4 DONE 0.0s
+#5 DONE 0.0s
+#6 DONE 0.0s
+#16 DONE 44.0s
+#21 DONE 1.0s
+#22 DONE 0.1s
+#23 DONE 0.0s
+#24 DONE 0.0s
+#25 DONE 10.3s
+#26 DONE 0.0s
+
+
+=== DOCKER PS ===
+CONTAINER ID   IMAGE                COMMAND                  CREATED              STATUS                        PORTS                                         NAMES
+54518c8e7f45   itam-app             "docker-entrypoint.s…"   About a minute ago   Up About a minute             0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp   itam-app-prod
+fef6c86a4e98   postgres:17-alpine   "docker-entrypoint.s…"   About a minute ago   Up About a minute (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp   itam-postgres-prod
+

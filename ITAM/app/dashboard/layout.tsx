@@ -10,6 +10,13 @@ import {
   CheckCircle,
   Wrench,
 } from "lucide-react";
+import { sheetConfigs } from "@/lib/sheets";
+
+const sheetNavItems = sheetConfigs.map((s) => ({
+  label: s.name,
+  href: `/dashboard/sheets/${s.slug}`,
+  icon: s.icon,
+}));
 
 const menuConfig: Record<
   string,
@@ -27,17 +34,17 @@ const menuConfig: Record<
   ],
   IT_OPS: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Assets", href: "/dashboard/assets", icon: Package },
     { label: "IT Approvals", href: "/dashboard/approvals/it", icon: CheckCircle },
     { label: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
+    ...sheetNavItems,
   ],
   IT_ASSET_MANAGER: [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Assets", href: "/dashboard/assets", icon: Package },
+    { label: "Request Asset", href: "/dashboard/requests/new", icon: FileText },
     { label: "Requests", href: "/dashboard/requests", icon: FileText },
     { label: "Approvals", href: "/dashboard/approvals", icon: CheckCircle },
-    { label: "Compliance", href: "/dashboard/compliance", icon: BarChart3 },
     { label: "Maintenance", href: "/dashboard/maintenance", icon: Wrench },
+    ...sheetNavItems,
   ],
 };
 

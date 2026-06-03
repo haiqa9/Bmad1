@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createAssetSchema, assetQuerySchema } from "@/lib/validations/asset";
+import { requireAuth, requireManager } from "@/lib/api-auth";
 
 // GET /api/assets - List assets with pagination, filters, and search
 export async function GET(req: NextRequest) {
+  const token = await requireAuth(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const { searchParams } = new URL(req.url);
     const query = assetQuerySchema.parse(Object.fromEntries(searchParams));
@@ -58,6 +62,9 @@ export async function GET(req: NextRequest) {
 
 // POST /api/assets - Create a new asset
 export async function POST(req: NextRequest) {
+  const token = await requireManager(req);
+  if (token instanceof NextResponse) return token;
+
   try {
     const body = await req.json();
     const parsed = createAssetSchema.parse(body);

@@ -1,22 +1,14 @@
 import { getCurrentUser } from "@/lib/session";
 import { redirect } from "next/navigation";
-import { Package, FileText, CheckCircle, BarChart3, Wrench, ArrowUpRight } from "lucide-react";
+import { FileText, CheckCircle, Wrench, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+import { UserManagementModal } from "@/components/users/user-management-modal";
 
 export default async function AdminDashboard() {
   const user = await getCurrentUser();
   if (!user || user.role !== "IT_ASSET_MANAGER") redirect("/dashboard");
 
   const cards = [
-    {
-      label: "Asset Inventory",
-      desc: "Full CMDB view and management",
-      href: "/dashboard/assets",
-      icon: Package,
-      color: "bg-[#1A50A3]",
-      lightColor: "bg-[#1A50A3]/10",
-      textColor: "text-[#1A50A3]",
-    },
     {
       label: "All Requests",
       desc: "Oversee the request pipeline",
@@ -34,15 +26,6 @@ export default async function AdminDashboard() {
       color: "bg-[#F47C22]",
       lightColor: "bg-[#F47C22]/10",
       textColor: "text-[#F47C22]",
-    },
-    {
-      label: "Compliance",
-      desc: "License compliance & aging reports",
-      href: "/dashboard/compliance",
-      icon: BarChart3,
-      color: "bg-[#2491E5]",
-      lightColor: "bg-[#2491E5]/10",
-      textColor: "text-[#2491E5]",
     },
     {
       label: "Maintenance",
@@ -93,6 +76,7 @@ export default async function AdminDashboard() {
             </Link>
           );
         })}
+        <UserManagementModal />
       </div>
     </div>
   );

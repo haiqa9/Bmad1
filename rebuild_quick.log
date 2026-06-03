@@ -1,0 +1,54 @@
+EXIT CODE: 0
+
+=== BUILD LOG TAIL ===
+#16 42.07 
+#16 DONE 42.4s
+
+#17 [runner  3/10] RUN addgroup --system --gid 1001 nodejs
+#17 CACHED
+
+#18 [runner  4/10] RUN adduser --system --uid 1001 nextjs
+#18 CACHED
+
+#19 [runner  5/10] COPY --from=builder /app/public ./public
+#19 CACHED
+
+#20 [runner  6/10] COPY --from=builder /app/package.json ./package.json
+#20 CACHED
+
+#21 [runner  7/10] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#21 DONE 0.9s
+
+#22 [runner  8/10] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#22 DONE 0.1s
+
+#23 [runner  9/10] COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+#23 DONE 0.1s
+
+#24 [runner 10/10] COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./prisma.config.js
+#24 DONE 0.0s
+
+#25 exporting to image
+#25 exporting layers
+#25 exporting layers 6.6s done
+#25 exporting manifest sha256:6bffca133ba6e40d68e115861d077186abe49870182160da8ba5a5418f6fb6ff 0.0s done
+#25 exporting config sha256:1079524053118039a2747983234535cb25a74ea15ce8bf529507fdd2a0fd60fa done
+#25 exporting attestation manifest sha256:46077721dd45f2f3f52c068140fc5d84a55fd10e0ef83bfa41107dfe3cf93e41 0.0s done
+#25 exporting manifest list sha256:79f0ee70a3ccb23ad1a17185090a34902a9ccc0e6bce56a31a80b13e69d56736 0.0s done
+#25 naming to docker.io/library/itam-app:latest done
+#25 unpacking to docker.io/library/itam-app:latest
+#25 unpacking to docker.io/library/itam-app:latest 2.6s done
+#25 DONE 9.4s
+
+#26 resolving provenance for metadata file
+#26 DONE 0.0s
+ Image itam-app Built 
+ Container itam-postgres-prod Running 
+ Container itam-app-prod Recreate 
+ Container itam-app-prod Recreated 
+ Container itam-nginx Running 
+ Container itam-postgres-prod Waiting 
+ Container itam-postgres-prod Healthy 
+ Container itam-app-prod Starting 
+ Container itam-app-prod Started 
+

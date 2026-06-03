@@ -7,6 +7,6 @@ module.exports = defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env.DATABASE_URL,
+    url: "postgresql://itam:itam_dev@localhost:5432/itam?schema=public",
   },
 });

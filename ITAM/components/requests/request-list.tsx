@@ -20,6 +20,7 @@ interface RequestItem {
     type: string;
   };
   requestedBy: string;
+  requestedByName: string | null;
   department: string;
   justification: string;
   status: string;
@@ -134,7 +135,7 @@ export function RequestList({
               </div>
               <div>
                 <p className="text-zinc-500 dark:text-zinc-400">Requested By</p>
-                <p className="font-medium">{selectedRequest.requestedBy}</p>
+                <p className="font-medium">{selectedRequest.requestedByName || selectedRequest.requestedBy}</p>
               </div>
               <div>
                 <p className="text-zinc-500 dark:text-zinc-400">Department</p>
@@ -213,6 +214,7 @@ export function RequestList({
                 <TableRow>
                   <TableHead>Asset</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Requested By</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Urgency</TableHead>
                   <TableHead>Department</TableHead>
@@ -223,14 +225,14 @@ export function RequestList({
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       Loading...
                     </TableCell>
                   </TableRow>
                 ) : data.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center py-8 text-zinc-500"
                     >
                       No requests found.
@@ -243,6 +245,9 @@ export function RequestList({
                         {request.asset.title}
                       </TableCell>
                       <TableCell>{request.asset.type}</TableCell>
+                      <TableCell>
+                        <span className="font-medium">{request.requestedByName || request.requestedBy}</span>
+                      </TableCell>
                       <TableCell>
                         <Badge className={statusColors[request.status] || ""}>
                           {request.status}

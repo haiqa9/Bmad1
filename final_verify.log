@@ -1,0 +1,42 @@
+=== BUILD LOG TAIL ===
+ > [builder 7/7] RUN npm run build:
+38.27   Type 'null' is not assignable to type 'string'.
+38.27 
+38.27   [90m253 |[0m                 <[33mSelect[0m
+38.27   [90m254 |[0m                   value={form.role}
+38.27 [31m[1m>[0m [90m255 |[0m                   onValueChange={(v) => setForm({ ...form, role: v })}
+38.27   [90m    |[0m                                                            [31m[1m^[0m
+38.27   [90m256 |[0m                 >
+38.27   [90m257 |[0m                   <[33mSelectTrigger[0m className=[32m"w-full"[0m>
+38.27   [90m258 |[0m                     <[33mSelectValue[0m />
+38.57 Next.js build worker exited with code: 1 and signal: null
+------
+Dockerfile:20
+
+--------------------
+
+  18 |     RUN npx prisma generate
+
+  19 |     RUN npx tsc prisma/seed.ts --module commonjs --target es2020 --esModuleInterop --moduleResolution node --skipLibCheck
+
+  20 | >>> RUN npm run build
+
+  21 |     
+
+  22 |     # Stage 3: Runner
+
+--------------------
+
+failed to solve: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+
+
+
+=== DOCKER PS ===
+NAMES                STATUS                    PORTS
+itam-nginx           Up 29 minutes             0.0.0.0:443->443/tcp, [::]:443->443/tcp, 0.0.0.0:8081->80/tcp, [::]:8081->80/tcp
+itam-app-prod        Up 33 minutes             0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+itam-postgres-prod   Up 33 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+
+
+=== HEALTH CHECK ===
+200

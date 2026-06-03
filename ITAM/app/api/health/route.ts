@@ -7,7 +7,7 @@ export async function GET() {
     return NextResponse.json({ status: "ok", database: "connected" });
   } catch (error) {
     return NextResponse.json(
-      { status: "error", database: "disconnected", error: String(error) },
+      { status: "error", database: "disconnected" },
       { status: 500 }
     );
   }

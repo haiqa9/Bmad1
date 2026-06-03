@@ -1,0 +1,52 @@
+=== BUILD LOG TAIL ===
+#19 CACHED
+
+#20 [runner  6/10] COPY --from=builder /app/package.json ./package.json
+#20 CACHED
+
+#21 [runner  7/10] COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+#21 DONE 1.0s
+
+#22 [runner  8/10] COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+#22 DONE 0.2s
+
+#23 [runner  9/10] COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+#23 DONE 0.1s
+
+#24 [runner 10/10] COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.js ./prisma.config.js
+#24 DONE 0.1s
+
+#25 exporting to image
+#25 exporting layers
+#25 exporting layers 7.5s done
+#25 exporting manifest sha256:b6b1841fbe1b069b3b912952297b0c6e05874f1546401f858c757db9b75e828f done
+#25 exporting config sha256:e1ac8ab41a6413b8d41ef6f4ff00ac9689bdbac22772944a5ab93b7834491fd6 done
+#25 exporting attestation manifest sha256:f67b495ed0bbb5fe2aca3f6cadfb13254df06d36ede77ab44334109167823ddd 0.0s done
+#25 exporting manifest list sha256:a6cdcfca25ab65ba709247729afdc25c9c3038133980d98f990fa53ff047a735 done
+#25 naming to docker.io/library/itam-app:latest done
+#25 unpacking to docker.io/library/itam-app:latest
+#25 unpacking to docker.io/library/itam-app:latest 3.2s done
+#25 DONE 10.8s
+
+#26 resolving provenance for metadata file
+#26 DONE 0.0s
+ Image itam-app Built 
+ Container itam-postgres-prod Running 
+ Container itam-app-prod Recreate 
+ Container itam-app-prod Recreated 
+ Container itam-nginx Running 
+ Container itam-postgres-prod Waiting 
+ Container itam-postgres-prod Healthy 
+ Container itam-app-prod Starting 
+ Container itam-app-prod Started 
+
+
+=== DOCKER PS ===
+NAMES                STATUS                    PORTS
+itam-app-prod        Up 25 seconds             0.0.0.0:3000->3000/tcp, [::]:3000->3000/tcp
+itam-nginx           Up 32 minutes             0.0.0.0:443->443/tcp, [::]:443->443/tcp, 0.0.0.0:8081->80/tcp, [::]:8081->80/tcp
+itam-postgres-prod   Up 36 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+
+
+=== HEALTH CHECK ===
+200
